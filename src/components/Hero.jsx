@@ -31,21 +31,7 @@ const Hero = () => {
           Smarter Loan Management Starts Here
         </motion.p>
 
-        {/* CTA Button */}
-        <motion.div
-          className="flex flex-col sm:flex-row gap-4"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.6, duration: 0.8, ease: "easeOut" }}
-        >
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.97 }}
-            className="bg-blue-600 hover:bg-blue-700 transition px-6 py-3 rounded-lg text-lg font-semibold shadow-md"
-          >
-            Get Started
-          </motion.button>
-        </motion.div>
+        {/* CTA removed: centered Get Started button intentionally removed */}
       </div>
 
       {/* Highlight Box at Bottom */}
@@ -60,8 +46,9 @@ const Hero = () => {
             All-in-One AI-Powered CRM
           </h2>
           <p className="text-gray-200">
-            Our intelligent system helps financial institutions automate workflow, monitor clients,
-            and boost growth — faster and smarter than ever.
+            Our intelligent system helps financial institutions automate
+            workflow, monitor clients, and boost growth — faster and smarter
+            than ever.
           </p>
         </div>
       </motion.div>

@@ -8,7 +8,6 @@ const DashboardLinks = () => {
         <h2 className="text-xl font-bold mb-4">All Dashboards</h2>
 
         <nav className="space-y-3">
-          
           <a
             href="https://tenant-admin-brd.vercel.app/"
             target="_blank"
@@ -18,11 +17,13 @@ const DashboardLinks = () => {
           </a>
 
           <a
-            href="https://brd-evaluation-1dashboard.vercel.app/login"
+            href="https://valuation-dashbaord.vercel.app/login
+Valuation Dashboard
+ "
             target="_blank"
             className="block hover:bg-white hover:text-[#034271] p-2 rounded"
           >
-            Evaulation Team
+            Vaulation Team
           </a>
 
           <a
@@ -33,14 +34,14 @@ const DashboardLinks = () => {
             Finance Team
           </a>
           <a
-            href="https://fraud-dash.vercel.app/login"
+            href="https://fraud-nine.vercel.app/login"
             target="_blank"
             className="block hover:bg-white hover:text-[#034271] p-2 rounded"
           >
             Fruad Team
           </a>
           <a
-            href="https://brd-operation-verification.vercel.app/"
+            href="https://brd-operation-verification-dashboar.vercel.app"
             target="_blank"
             className="block hover:bg-white hover:text-[#034271] p-2 rounded"
           >

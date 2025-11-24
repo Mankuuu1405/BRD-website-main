@@ -12,7 +12,7 @@ const SignUp = () => {
     mobile_no: "",
     // Business Details
     business_name: "",
-    occupation_type: "",
+    Business_type: "",
     business_website: "",
     business_description: "",
     // Business Address
@@ -156,7 +156,7 @@ const SignUp = () => {
             </div>
             <div className="form-group">
               <label htmlFor="occupation_type">
-                Occupation Type <span className="required">*</span>
+                Business Type <span className="required">*</span>
               </label>
               <select
                 id="occupation_type"
