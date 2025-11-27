@@ -3,8 +3,8 @@ import React from "react";
 const DashboardLinks = () => {
   return (
     <div className="flex h-screen mt-18">
-      {/* Sidebar */}
-      <div className="w-64 bg-[#034271] text-white p-6 space-y-4">
+      {/* Sidebar (sticky while scrolling) */}
+      <div className="w-64 bg-[#034271] text-white p-6 space-y-4 sticky top-0 self-start h-screen overflow-y-auto">
         <h2 className="text-xl font-bold mb-4">All Dashboards</h2>
 
         <nav className="space-y-3">

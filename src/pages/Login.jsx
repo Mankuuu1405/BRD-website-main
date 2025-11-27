@@ -76,6 +76,10 @@ const Login = () => {
           <i className="fas fa-sign-in-alt"></i>
           <h1>Welcome Back</h1>
           <p>Sign in to your account</p>
+          <p className="muted small">
+            Note: New tenant passwords are auto-generated and emailed after
+            sign-up verification.
+          </p>
         </div>
 
         <form onSubmit={handleSubmit}>
