@@ -1,4 +1,5 @@
 import React from "react";
+import {Link} from "react-router-dom";
 import {
   FaFacebookF,
   FaInstagram,
@@ -54,10 +55,9 @@ const Footer = () => {
           <div>
             <h3 className="text-lg md:text-xl font-semibold mb-4">Company</h3>
             <ul className="flex flex-col gap-3 text-gray-300 text-sm md:text-base">
-              <li><a href="#">About</a></li>
-              <li><a href="#">Features</a></li>
-              <li><a href="#">Work</a></li>
-              <li><a href="#">Careers</a></li>
+              <li><Link to="/about">About</Link></li>
+              <li><Link to="/features">Features</Link></li>
+              <li><Link to="/careers">Careers</Link></li>
             </ul>
           </div>
 
@@ -65,10 +65,10 @@ const Footer = () => {
           <div>
             <h3 className="text-lg md:text-xl font-semibold mb-4">Help</h3>
             <ul className="flex flex-col gap-3 text-gray-300 text-sm md:text-base">
-              <li><a href="#">Customer Support</a></li>
-              <li><a href="#">Terms & Condition</a></li>
-              <li><a href="#">Payments</a></li>
-              <li><a href="#">Privacy Policy</a></li>
+              <li><Link to="/contact">Contact</Link></li>
+              <li><Link to="/terms-conditions">Terms & Conditions</Link></li>
+              <li><Link to="/payments">Payments</Link></li>
+              <li><Link to="/privacy-policy">Privacy Policy</Link></li>
             </ul>
           </div>
 
