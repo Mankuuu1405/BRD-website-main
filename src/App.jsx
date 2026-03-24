@@ -14,6 +14,7 @@ import Login from "./pages/Login";
 import ScrollToTop from "./components/ScrollToTop";
 import Payments from "./pages/Payments";
 import Careers from "./pages/Careers";
+import SubscriptionPlans from "./pages/SubscriptionPlans";
 
 export default function App() {
   return (
@@ -29,10 +30,10 @@ export default function App() {
           <Route path="/careers" element={<Careers />} />
           <Route path="/dashboards" element={<DashboardLinks />} />
           <Route path="/terms-conditions" element={<TermsConditions />} />
-
           <Route path="/payments" element={<Payments />} />
           <Route path="/signup" element={<SignUp />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/subscription" element={<SubscriptionPlans />} />
         </Routes>
         <Footer />
       </div>

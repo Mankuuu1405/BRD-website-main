@@ -1,3961 +1,661 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
-const SignUp = () => {
+/* ─── Shared Design Tokens ────────────────────────────────────────────────── */
+const T = {
+  primary:      "#1a56db",
+  primaryDark:  "#1347c4",
+  primaryLight: "#eff6ff",
+  primaryBorder:"#bfdbfe",
+  text:         "#0f172a",
+  textSub:      "#475569",
+  textMuted:    "#94a3b8",
+  border:       "#e2e8f0",
+  borderHover:  "#94a3b8",
+  bg:           "#f8fafc",
+  white:        "#ffffff",
+  error:        "#dc2626",
+  errorBg:      "#fef2f2",
+  errorBorder:  "#fecaca",
+  success:      "#16a34a",
+  radius:       "10px",
+  radiusLg:     "16px",
+  shadow:       "0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04)",
+  shadowMd:     "0 4px 16px rgba(0,0,0,0.08)",
+  shadowLg:     "0 20px 40px rgba(0,0,0,0.10)",
+};
+
+const globalCss = `
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
+  .auth-root * { box-sizing: border-box; font-family: 'DM Sans', sans-serif; }
+  .auth-root input, .auth-root select, .auth-root textarea { font-family: 'DM Sans', sans-serif; }
+  .auth-input:focus { border-color: ${T.primary} !important; box-shadow: 0 0 0 3px rgba(26,86,219,0.12) !important; outline: none; }
+  .auth-input:hover:not(:focus) { border-color: ${T.borderHover} !important; }
+  .auth-select:focus { border-color: ${T.primary} !important; box-shadow: 0 0 0 3px rgba(26,86,219,0.12) !important; outline: none; }
+  .auth-btn-primary { transition: all 0.18s ease; }
+  .auth-btn-primary:hover:not(:disabled) { background: ${T.primaryDark} !important; transform: translateY(-1px); box-shadow: 0 6px 20px rgba(26,86,219,0.30) !important; }
+  .auth-btn-primary:active:not(:disabled) { transform: translateY(0); }
+  .auth-btn-ghost:hover { background: ${T.bg} !important; border-color: ${T.borderHover} !important; color: ${T.text} !important; }
+  .auth-step-dot { transition: all 0.3s ease; }
+  .auth-dropdown-item:hover { background: ${T.primaryLight} !important; color: ${T.primary} !important; }
+  @keyframes fadeSlide { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+  .auth-step-panel { animation: fadeSlide 0.25s ease both; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+`;
+
+const inp = {
+  width: "100%",
+  padding: "0.75rem 0.875rem",
+  border: `1.5px solid ${T.border}`,
+  borderRadius: T.radius,
+  fontSize: "0.9rem",
+  color: T.text,
+  background: T.white,
+  transition: "border-color 0.15s, box-shadow 0.15s",
+  outline: "none",
+};
+
+const lbl = {
+  display: "block",
+  fontSize: "0.8rem",
+  fontWeight: "600",
+  color: T.textSub,
+  marginBottom: "0.4rem",
+  letterSpacing: "0.01em",
+};
+
+export default function SignUp() {
   const navigate = useNavigate();
-  
-  // State to manage all form fields
+
   const [formData, setFormData] = useState({
-    // Page 1: Basic Contact Information
-    full_name: "",
-    email: "",
-    phone_number: "",
-    
-    // Page 2: Password
-    password: "",
-    confirm_password: "",
-    
-    // Page 3: Company and Business Details
-    company_name: "",
-    company_type: "", // NBFC/Bank/Fintech/Other
-    organisation_type: "", // Private Limited/LLP/Proprietorship/Partnership
-    company_pan: "",
-    owner_pan: "",
-    gst_number: "",
-    number_of_users: "",
-    current_aum: "",
-    loan_products: [], // Multi-select
-    
-    // Address
-    address_line1: "",
-    address_line2: "",
-    city: "",
-    state: "",
-    pincode: "",
-    country: "",
-    
-    // Branches
-    require_branches: "", // Yes/No
-    number_of_branches: "",
+    full_name: "", email: "", phone_number: "", password: "", confirm_password: "",
+    company_name: "", company_type: "", organisation_type: "",
+    company_pan: "", owner_pan: "", gst_number: "",
+    number_of_users: "", current_aum: "", loan_products: [],
+    address_line1: "", address_line2: "", city: "", state: "",
+    pincode: "", country: "", require_branches: "", number_of_branches: "",
   });
 
-  // State for loading, error, and step management
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [currentStep, setCurrentStep] = useState(1); // 1, 2, 3, or 4 (OTP verification)
-  const [emailOtp, setEmailOtp] = useState("");
-  const [phoneOtp, setPhoneOtp] = useState("");
-
-  // State for loan products dropdown
-  const [loanProductsDropdownOpen, setLoanProductsDropdownOpen] = useState(false);
+  const [loading, setLoading]           = useState(false);
+  const [error, setError]               = useState("");
+  const [currentStep, setCurrentStep]   = useState(1);
+  const [emailOtp, setEmailOtp]         = useState("");
+  const [phoneOtp, setPhoneOtp]         = useState("");
+  const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
 
-  // Available loan products
-  const loanProductsOptions = [
-    "Working Capital",
-    "Equipment Financing",
-    "Line of Credit",
-    "Merchant Cash Advance",
-    "Term Loan",
-    "Invoice Financing",
+  const loanOptions = [
+    "Working Capital","Equipment Financing","Line of Credit",
+    "Merchant Cash Advance","Term Loan","Invoice Financing",
   ];
 
-  // Close dropdown when clicking outside
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setLoanProductsDropdownOpen(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
+    const h = (e) => { if (dropdownRef.current && !dropdownRef.current.contains(e.target)) setDropdownOpen(false); };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
   }, []);
 
-  // Generic handler for input changes
   const handleChange = (e) => {
     const { name, value } = e.target;
-    let newValue = value;
-    
-    // Normalize certain identifier fields
-    if (name === "company_pan" || name === "owner_pan" || name === "gst_number") {
-      newValue = value.toUpperCase();
-    }
-
-    setFormData((prevState) => ({
-      ...prevState,
-      [name]: newValue,
-    }));
-    
-    // Clear error when user types
+    const v = ["company_pan","owner_pan","gst_number"].includes(name) ? value.toUpperCase() : value;
+    setFormData(p => ({ ...p, [name]: v }));
     if (error) setError("");
   };
 
-  // Handler for loan products multi-select
-  const handleLoanProductToggle = (product) => {
-    setFormData((prevState) => {
-      const loanProducts = [...prevState.loan_products];
-      const index = loanProducts.indexOf(product);
-
-      if (index > -1) {
-        loanProducts.splice(index, 1);
-      } else {
-        loanProducts.push(product);
-      }
-
-      return {
-        ...prevState,
-        loan_products: loanProducts,
-      };
+  const toggleProduct = (p) => {
+    setFormData(prev => {
+      const arr = [...prev.loan_products];
+      const i = arr.indexOf(p);
+      if (i > -1) arr.splice(i,1); else arr.push(p);
+      return { ...prev, loan_products: arr };
     });
   };
 
-  // Toggle dropdown open/close
-  const toggleLoanProductsDropdown = () => {
-    setLoanProductsDropdownOpen(!loanProductsDropdownOpen);
+  /* Validations */
+  const v1 = () => {
+    const e = [];
+    if (!formData.full_name.trim()) e.push("Full name is required.");
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) e.push("Valid email required.");
+    if (!/^\d{10}$|^\+\d{10,}$|^\+91\d{10}$/.test(formData.phone_number.replace(/\s+/g,"")))
+      e.push("Valid phone number required.");
+    return e;
   };
-
-  // Validation functions
-  const validateStep1 = () => {
-    const errors = [];
-    if (!formData.full_name || formData.full_name.trim() === "") {
-      errors.push("Full name is required.");
-    }
-    if (!formData.email || formData.email.trim() === "") {
-      errors.push("Email is required.");
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      errors.push("Please enter a valid email address.");
-    }
-    if (!formData.phone_number || formData.phone_number.trim() === "") {
-      errors.push("Phone number is required.");
-    } else if (!/^\d{10}$|^\+\d{10,}$|^\+91\d{10}$/.test(formData.phone_number.replace(/\s+/g, ""))) {
-      errors.push("Phone number must be 10 digits or include country code (e.g., +919876543210).");
-    }
-    return errors;
+  const v2 = () => {
+    const e = [];
+    if (!emailOtp.trim()) e.push("Email OTP required.");
+    if (!phoneOtp.trim()) e.push("Phone OTP required.");
+    return e;
   };
-
-  const validateStep2 = () => {
-    const errors = [];
-    if (!formData.password || formData.password.trim() === "") {
-      errors.push("Password is required.");
-    } else if (formData.password.length < 8) {
-      errors.push("Password must be at least 8 characters long.");
-    }
-    if (!formData.confirm_password || formData.confirm_password.trim() === "") {
-      errors.push("Please confirm your password.");
-    }
-    if (formData.password !== formData.confirm_password) {
-      errors.push("Passwords do not match.");
-    }
-    return errors;
+  const v3 = () => {
+    const e = [];
+    if (formData.password.length < 8) e.push("Password must be at least 8 characters.");
+    if (formData.password !== formData.confirm_password) e.push("Passwords do not match.");
+    return e;
   };
-
-  const validateStep3 = () => {
-    const errors = [];
-    const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]$/i;
-    const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/i;
-
-    if (!formData.company_name || formData.company_name.trim() === "") {
-      errors.push("Company name is required.");
-    }
-    if (!formData.company_type || formData.company_type.trim() === "") {
-      errors.push("Company type is required.");
-    }
-    if (!formData.organisation_type || formData.organisation_type.trim() === "") {
-      errors.push("Organisation type is required.");
-    }
-
-    // PAN validation based on organisation type
+  const v4 = () => {
+    const e = [];
+    const pan = /^[A-Z]{5}[0-9]{4}[A-Z]$/i;
+    const gst = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/i;
+    if (!formData.company_name.trim()) e.push("Company name required.");
+    if (!formData.company_type)        e.push("Company type required.");
+    if (!formData.organisation_type)   e.push("Organisation type required.");
     if (formData.organisation_type === "Proprietorship") {
-      if (!formData.owner_pan || formData.owner_pan.trim() === "") {
-        errors.push("Owner PAN is required for Proprietorship.");
-      } else if (!panRegex.test(formData.owner_pan.toUpperCase())) {
-        errors.push("Owner PAN format is invalid (expected: 5 letters, 4 digits, 1 letter).");
-      }
+      if (!pan.test(formData.owner_pan)) e.push("Valid Owner PAN required.");
     } else {
-      if (!formData.company_pan || formData.company_pan.trim() === "") {
-        errors.push("Company PAN is required.");
-      } else if (!panRegex.test(formData.company_pan.toUpperCase())) {
-        errors.push("Company PAN format is invalid (expected: 5 letters, 4 digits, 1 letter).");
-      }
+      if (!pan.test(formData.company_pan)) e.push("Valid Company PAN required.");
     }
-
-    if (!formData.gst_number || formData.gst_number.trim() === "") {
-      errors.push("GST Number is required.");
-    } else if (!gstRegex.test(formData.gst_number.toUpperCase())) {
-      errors.push("GST Number format is invalid (expected 15 characters, e.g., 27AAAAA0000A1Z5).");
-    }
-
-    if (!formData.number_of_users || formData.number_of_users.trim() === "") {
-      errors.push("Number of users required is mandatory.");
-    }
-    if (!formData.current_aum || formData.current_aum.trim() === "") {
-      errors.push("Current AUM is required.");
-    }
-    if (!formData.loan_products || formData.loan_products.length === 0) {
-      errors.push("Please select at least one loan product.");
-    }
-
-    // Address validation
-    if (!formData.address_line1 || formData.address_line1.trim() === "") {
-      errors.push("Address Line 1 is required.");
-    }
-    if (!formData.city || formData.city.trim() === "") {
-      errors.push("City is required.");
-    }
-    if (!formData.state || formData.state.trim() === "") {
-      errors.push("State is required.");
-    }
-    if (!formData.pincode || formData.pincode.trim() === "") {
-      errors.push("Pincode is required.");
-    }
-    if (!formData.country || formData.country.trim() === "") {
-      errors.push("Country is required.");
-    }
-
-    // Branches validation
-    if (!formData.require_branches || formData.require_branches.trim() === "") {
-      errors.push("Please specify if you require branches.");
-    }
-    if (formData.require_branches === "Yes") {
-      if (!formData.number_of_branches || formData.number_of_branches.trim() === "") {
-        errors.push("Number of branches is required.");
-      }
-    }
-
-    return errors;
+    if (!gst.test(formData.gst_number)) e.push("Valid GST number required.");
+    if (!formData.number_of_users) e.push("Number of users required.");
+    if (!formData.current_aum.trim()) e.push("Current AUM required.");
+    if (!formData.loan_products.length) e.push("Select at least one loan product.");
+    if (!formData.address_line1.trim()) e.push("Address required.");
+    if (!formData.city.trim()) e.push("City required.");
+    if (!formData.state.trim()) e.push("State required.");
+    if (!formData.pincode.trim()) e.push("Pincode required.");
+    if (!formData.country.trim()) e.push("Country required.");
+    if (!formData.require_branches) e.push("Branch requirement needed.");
+    if (formData.require_branches === "Yes" && !formData.number_of_branches) e.push("Number of branches required.");
+    return e;
   };
 
-  const validateOtp = () => {
-    const errors = [];
-    if (!emailOtp || emailOtp.trim() === "") {
-      errors.push("Email OTP is required.");
-    }
-    if (!phoneOtp || phoneOtp.trim() === "") {
-      errors.push("Phone OTP is required.");
-    }
-    return errors;
+  const fmtPhone = (p) => {
+    let f = p.replace(/\s+/g,"").replace(/[^+\d]/g,"");
+    if (!f.startsWith("+")) f = f.length === 10 ? `+91${f}` : `+${f}`;
+    return f;
   };
 
-  // Handle Step 1 submission (move to step 2)
-  const handleStep1Submit = (e) => {
-    e.preventDefault();
-    setError("");
-
-    const validationErrors = validateStep1();
-    if (validationErrors.length > 0) {
-      setError(validationErrors.join(" "));
-      return;
-    }
-
-    setCurrentStep(2);
+  /* Step handlers */
+  const step1 = async (e) => {
+    e.preventDefault(); setError("");
+    const err = v1(); if (err.length) { setError(err.join(" ")); return; }
+    setLoading(true);
+    try {
+      const res = await fetch("http://localhost:8000/auth/send-otp/", {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ email: formData.email, mobile_no: fmtPhone(formData.phone_number) }),
+      });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.error || "Failed to send OTP");
+      setCurrentStep(2);
+    } catch(err) { setError(err.message); } finally { setLoading(false); }
   };
 
-  // Handle Step 2 (Password) submission (move to step 3)
-  const handleStep2Submit = (e) => {
-    e.preventDefault();
-    setError("");
-
-    const validationErrors = validateStep2();
-    if (validationErrors.length > 0) {
-      setError(validationErrors.join(" "));
-      return;
-    }
-
-    setCurrentStep(3);
+  const step2 = async (e) => {
+    e.preventDefault(); setError("");
+    const err = v2(); if (err.length) { setError(err.join(" ")); return; }
+    setLoading(true);
+    try {
+      const res = await fetch("http://localhost:8000/auth/verify-otp/", {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ mobile_no: fmtPhone(formData.phone_number), phone_otp: phoneOtp, email_otp: emailOtp }),
+      });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.error || "Invalid OTP");
+      setCurrentStep(3);
+    } catch(err) { setError(err.message); } finally { setLoading(false); }
   };
 
-  // Handle Step 3 submission (validate and move to OTP step)
-  const handleStep3Submit = (e) => {
-    e.preventDefault();
-    setError("");
-
-    const validationErrors = validateStep3();
-    if (validationErrors.length > 0) {
-      setError(validationErrors.join(" "));
-      return;
-    }
-
-    // Move to OTP verification step
+  const step3 = (e) => {
+    e.preventDefault(); setError("");
+    const err = v3(); if (err.length) { setError(err.join(" ")); return; }
     setCurrentStep(4);
   };
 
-  // Handle sending OTP
-  const handleSendOtp = async () => {
+  const step4 = async (e) => {
+    e.preventDefault(); setError("");
+    const err = v4(); if (err.length) { setError(err.join(" ")); return; }
     setLoading(true);
-    setError("");
-
     try {
-      // Format phone number for backend
-      let formattedPhone = formData.phone_number.replace(/\s+/g, "").replace(/[^+\d]/g, "");
-      if (!formattedPhone.startsWith("+")) {
-        formattedPhone = formattedPhone.length === 10 ? `+91${formattedPhone}` : `+${formattedPhone}`;
-      }
-
       const payload = {
-        email: formData.email,
-        mobile_no: formattedPhone,
-      };
-
-      console.log("Sending OTP request with:", payload);
-
-      const response = await fetch("http://localhost:8000/auth/send-otp/", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || `Failed to send OTP (Status: ${response.status})`);
-      }
-
-      alert("OTP sent successfully to your email and phone!");
-      console.log("OTP sent successfully");
-    } catch (err) {
-      console.error("Send OTP error:", err);
-      setError(err.message || "Failed to send OTP. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Handle OTP verification and final registration
-  const handleFinalSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError("");
-
-    const validationErrors = validateOtp();
-    if (validationErrors.length > 0) {
-      setError(validationErrors.join(" "));
-      setLoading(false);
-      return;
-    }
-
-    try {
-      // Format phone number
-      let formattedPhone = formData.phone_number.replace(/\s+/g, "").replace(/[^+\d]/g, "");
-      if (!formattedPhone.startsWith("+")) {
-        formattedPhone = formattedPhone.length === 10 ? `+91${formattedPhone}` : `+${formattedPhone}`;
-      }
-
-      // Step 1: Verify OTP
-      const verifyResponse = await fetch("http://localhost:8000/auth/verify-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          mobile: formattedPhone,
-          otp: phoneOtp,
-        }),
-      });
-
-      const verifyData = await verifyResponse.json();
-
-      if (!verifyResponse.ok) {
-        throw new Error(verifyData.error || "Invalid OTP");
-      }
-
-      console.log("OTP verified successfully");
-
-      // Step 2: Register user
-      const payload = {
-        contact_person: formData.full_name,
-        email: formData.email,
-        mobile_no: formattedPhone,
-        business_name: formData.company_name,
-        business_type: formData.organisation_type,
+        contact_person: formData.full_name, email: formData.email,
+        mobile_no: fmtPhone(formData.phone_number),
+        business_name: formData.company_name, business_type: formData.organisation_type,
         business_pan: formData.organisation_type !== "Proprietorship" ? formData.company_pan : "",
         owner_pan: formData.organisation_type === "Proprietorship" ? formData.owner_pan : "",
-        gst_number: formData.gst_number,
-        password: formData.password,
-        address_line1: formData.address_line1,
-        address_line2: formData.address_line2,
-        city: formData.city,
-        state: formData.state,
-        pincode: formData.pincode,
-        country: formData.country,
-        loan_product: formData.loan_products,
-        status: "Active",
-        // Additional fields
-        company_type: formData.company_type,
-        number_of_users: formData.number_of_users,
-        current_aum: formData.current_aum,
-        require_branches: formData.require_branches,
+        gst_number: formData.gst_number, password: formData.password,
+        address_line1: formData.address_line1, address_line2: formData.address_line2,
+        city: formData.city, state: formData.state, pincode: formData.pincode, country: formData.country,
+        loan_product: formData.loan_products, status: "Active",
+        company_type: formData.company_type, number_of_users: formData.number_of_users,
+        current_aum: formData.current_aum, require_branches: formData.require_branches,
         number_of_branches: formData.require_branches === "Yes" ? formData.number_of_branches : "0",
       };
-
-      console.log("Final registration payload:", payload);
-
-      const registerResponse = await fetch("http://localhost:8000/auth/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+      const res = await fetch("http://localhost:8000/auth/register/", {
+        method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(payload),
       });
-
-      const registerData = await registerResponse.json();
-
-      if (!registerResponse.ok) {
-        throw new Error(registerData.error || "Registration failed");
-      }
-
-      // Registration successful
-      alert("Registration successful! Redirecting to login...");
-      setTimeout(() => navigate("/login"), 1500);
-    } catch (err) {
-      console.error("Registration error:", err);
-      setError(err.message || "Registration failed. Please try again.");
-    } finally {
-      setLoading(false);
-    }
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.error || "Registration failed");
+      navigate("/subscription", {
+        state: {
+          number_of_users: formData.number_of_users,
+          require_branches: formData.require_branches,
+          number_of_branches: formData.require_branches === "Yes" ? formData.number_of_branches : "0",
+          loan_products: formData.loan_products,
+          company_name: formData.company_name,
+        }
+      });
+    } catch(err) { setError(err.message); } finally { setLoading(false); }
   };
 
-  // Handle resend OTP
-  const handleResendOtp = async () => {
-    await handleSendOtp();
+  const resendOtp = async () => {
+    setLoading(true); setError("");
+    try {
+      const res = await fetch("http://localhost:8000/auth/send-otp/", {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ email: formData.email, mobile_no: fmtPhone(formData.phone_number) }),
+      });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.error || "Failed to resend OTP");
+      alert("OTP resent successfully!");
+    } catch(err) { setError(err.message); } finally { setLoading(false); }
   };
+
+  const steps = ["Contact","Verify","Password","Details"];
 
   return (
-    <div style={{
-      minHeight: "100vh",
-      background: "linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 50%, #dbeafe 100%)",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      padding: "1rem",
-      marginTop: "65px"
-    }}>
-      <div style={{
-        maxWidth: "680px",
-        width: "100%",
-        background: "white",
-        borderRadius: "24px",
-        boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.15)",
-        padding: "2.5rem",
-        position: "relative",
-        overflow: "hidden",
+    <>
+      <style>{globalCss}</style>
+      <div className="auth-root" style={{
+        minHeight: "100vh",
+        background: `linear-gradient(160deg, #f0f7ff 0%, #e8f0fe 50%, #f0f4ff 100%)`,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        padding: "1.5rem", paddingTop: "calc(1.5rem + 65px)",
       }}>
-        {/* Decorative Elements */}
         <div style={{
-          position: "absolute",
-          top: "-50px",
-          right: "-50px",
-          width: "150px",
-          height: "150px",
-          background: "linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(147, 197, 253, 0.1) 100%)",
-          borderRadius: "50%",
-          filter: "blur(40px)",
-        }}></div>
-        <div style={{
-          position: "absolute",
-          bottom: "-30px",
-          left: "-30px",
-          width: "120px",
-          height: "120px",
-          background: "linear-gradient(135deg, rgba(29, 78, 216, 0.1) 0%, rgba(59, 130, 246, 0.1) 100%)",
-          borderRadius: "50%",
-          filter: "blur(30px)",
-        }}></div>
-
-        {/* Header */}
-        <div style={{ textAlign: "center", marginBottom: "2.5rem", position: "relative", zIndex: 1 }}>
-          <h1 style={{
-            fontSize: "clamp(1.75rem, 5vw, 2.25rem)",
-            fontWeight: "800",
-            background: "linear-gradient(135deg, #1e40af 0%, #3b82f6 50%, #60a5fa 100%)",
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-            marginBottom: "0.75rem",
-            letterSpacing: "-0.02em",
-          }}>
-            Create Your Account
-          </h1>
-          <p style={{ 
-            color: "#64748b", 
-            fontSize: "clamp(0.9rem, 2vw, 1rem)",
-            fontWeight: "500",
-          }}>
-            Register your organization to get started
-          </p>
-        </div>
-
-        {/* Step Progress Indicator */}
-        <div style={{ 
-          display: "flex", 
-          justifyContent: "space-between", 
-          alignItems: "center", 
-          margin: "2rem auto",
-          maxWidth: "500px",
-          position: "relative",
-          padding: "0 10px",
+          width: "100%", maxWidth: "560px",
+          background: T.white, borderRadius: "20px",
+          border: `1px solid ${T.border}`,
+          boxShadow: T.shadowLg,
+          overflow: "hidden",
         }}>
-          {/* Progress Line Background */}
-          <div style={{
-            position: "absolute",
-            top: "18px",
-            left: "10px",
-            right: "10px",
-            height: "4px",
-            background: "#e2e8f0",
-            zIndex: "0",
-            borderRadius: "2px",
-          }}></div>
-          
-          {/* Active Progress Line */}
-          <div style={{
-            position: "absolute",
-            top: "18px",
-            left: "10px",
-            width: `calc(${((currentStep - 1) / 3) * 100}% - ${((currentStep - 1) / 3) * 20}px)`,
-            height: "4px",
-            background: "linear-gradient(90deg, #1e40af 0%, #3b82f6 100%)",
-            transition: "width 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
-            zIndex: "1",
-            borderRadius: "2px",
-          }}></div>
 
-          {[1, 2, 3, 4].map((step) => (
-            <div key={step} style={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              zIndex: "2",
-              position: "relative",
-              flex: 1,
-            }}>
-              <div style={{
-                width: "40px",
-                height: "40px",
-                borderRadius: "50%",
-                background: currentStep >= step 
-                  ? "linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)" 
-                  : "white",
-                border: currentStep >= step ? "none" : "3px solid #e2e8f0",
-                color: currentStep >= step ? "white" : "#94a3b8",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontWeight: "700",
-                fontSize: "0.95rem",
-                boxShadow: currentStep >= step 
-                  ? "0 4px 12px rgba(30, 64, 175, 0.3)" 
-                  : "none",
-                transition: "all 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
-                transform: currentStep === step ? "scale(1.1)" : "scale(1)",
-              }}>
-                {currentStep > step ? (
-                  <i className="fas fa-check" style={{ fontSize: "1rem" }}></i>
-                ) : (
-                  step
-                )}
-              </div>
-              <span style={{ 
-                fontSize: "clamp(0.7rem, 2vw, 0.8rem)", 
-                color: currentStep >= step ? "#1e40af" : "#94a3b8",
-                fontWeight: currentStep === step ? "700" : "600",
-                marginTop: "0.6rem",
-                textAlign: "center",
-                transition: "all 0.3s ease",
-                whiteSpace: "nowrap",
-              }}>
-                {step === 1 && "Contact"}
-                {step === 2 && "Password"}
-                {step === 3 && "Details"}
-                {step === 4 && "Verify"}
-              </span>
-            </div>
-          ))}
-        </div>
+          {/* Top accent bar */}
+          <div style={{ height: "3px", background: `linear-gradient(90deg, ${T.primary}, #6366f1)` }} />
 
-        {/* Error Message */}
-        {error && (
-          <div style={{
-            background: "linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%)",
-            border: "1px solid #fca5a5",
-            color: "#dc2626",
-            padding: "1rem 1.25rem",
-            borderRadius: "12px",
-            marginBottom: "1.5rem",
-            fontSize: "0.9rem",
-            display: "flex",
-            alignItems: "flex-start",
-            gap: "0.75rem",
-            boxShadow: "0 2px 8px rgba(220, 38, 38, 0.1)",
-          }}>
-            <i className="fas fa-exclamation-circle" style={{ marginTop: "2px", fontSize: "1.1rem" }}></i>
-            <span style={{ lineHeight: "1.5" }}>{error}</span>
-          </div>
-        )}
+          <div style={{ padding: "2rem 2.25rem" }}>
 
-        {/* Step 1: Basic Contact Information */}
-        {currentStep === 1 && (
-          <form onSubmit={handleStep1Submit}>
-            <div style={{ marginBottom: "1.5rem" }}>
-              <h2 style={{
-                fontSize: "clamp(1.1rem, 3vw, 1.3rem)",
-                fontWeight: "700",
-                marginBottom: "1.5rem",
-                color: "#1e293b",
-                display: "flex",
-                alignItems: "center",
-                gap: "0.75rem",
-              }}>
+            {/* Header */}
+            <div style={{ marginBottom: "1.75rem" }}>
+              <div style={{ display:"flex", alignItems:"center", gap:"0.625rem", marginBottom:"0.5rem" }}>
                 <div style={{
-                  width: "36px",
-                  height: "36px",
-                  borderRadius: "10px",
-                  background: "linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
+                  width:"34px", height:"34px", borderRadius:"9px",
+                  background: `linear-gradient(135deg, ${T.primary}, #6366f1)`,
+                  display:"flex", alignItems:"center", justifyContent:"center",
                 }}>
-                  <i className="fas fa-user" style={{ color: "#1e40af", fontSize: "1rem" }}></i>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
                 </div>
-                Basic Contact Information
-              </h2>
-              
-              <div style={{ marginBottom: "1.25rem" }}>
-                <label style={{
-                  display: "block",
-                  fontWeight: "600",
-                  marginBottom: "0.6rem",
-                  color: "#334155",
-                  fontSize: "0.9rem",
-                }}>
-                  Full Name <span style={{ color: "#ef4444" }}>*</span>
-                </label>
-                <input
-                  type="text"
-                  name="full_name"
-                  value={formData.full_name}
-                  onChange={handleChange}
-                  placeholder="Enter your full name"
-                  required
-                  style={{
-                    width: "100%",
-                    padding: "0.875rem 1.125rem",
-                    border: "2px solid #e2e8f0",
-                    borderRadius: "12px",
-                    fontSize: "0.95rem",
-                    transition: "all 0.2s ease",
-                    outline: "none",
-                    boxSizing: "border-box",
-                    fontFamily: "inherit",
-                  }}
-                  onFocus={(e) => {
-                    e.target.style.borderColor = "#3b82f6";
-                    e.target.style.boxShadow = "0 0 0 3px rgba(59, 130, 246, 0.1)";
-                  }}
-                  onBlur={(e) => {
-                    e.target.style.borderColor = "#e2e8f0";
-                    e.target.style.boxShadow = "none";
-                  }}
-                />
+                <span style={{ fontSize:"0.78rem", fontWeight:"700", color: T.primary, letterSpacing:"0.08em", textTransform:"uppercase" }}>
+                  LoanOS
+                </span>
               </div>
-
-              <div style={{ marginBottom: "1.25rem" }}>
-                <label style={{
-                  display: "block",
-                  fontWeight: "600",
-                  marginBottom: "0.6rem",
-                  color: "#334155",
-                  fontSize: "0.9rem",
-                }}>
-                  Email Address <span style={{ color: "#ef4444" }}>*</span>
-                </label>
-                <input
-                  type="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  placeholder="your.email@company.com"
-                  required
-                  style={{
-                    width: "100%",
-                    padding: "0.875rem 1.125rem",
-                    border: "2px solid #e2e8f0",
-                    borderRadius: "12px",
-                    fontSize: "0.95rem",
-                    transition: "all 0.2s ease",
-                    outline: "none",
-                    boxSizing: "border-box",
-                    fontFamily: "inherit",
-                  }}
-                  onFocus={(e) => {
-                    e.target.style.borderColor = "#3b82f6";
-                    e.target.style.boxShadow = "0 0 0 3px rgba(59, 130, 246, 0.1)";
-                  }}
-                  onBlur={(e) => {
-                    e.target.style.borderColor = "#e2e8f0";
-                    e.target.style.boxShadow = "none";
-                  }}
-                />
-              </div>
-
-              <div style={{ marginBottom: "1.25rem" }}>
-                <label style={{
-                  display: "block",
-                  fontWeight: "600",
-                  marginBottom: "0.6rem",
-                  color: "#334155",
-                  fontSize: "0.9rem",
-                }}>
-                  Phone Number <span style={{ color: "#ef4444" }}>*</span>
-                </label>
-                <input
-                  type="tel"
-                  name="phone_number"
-                  value={formData.phone_number}
-                  onChange={handleChange}
-                  placeholder="+91 9876543210"
-                  required
-                  style={{
-                    width: "100%",
-                    padding: "0.875rem 1.125rem",
-                    border: "2px solid #e2e8f0",
-                    borderRadius: "12px",
-                    fontSize: "0.95rem",
-                    transition: "all 0.2s ease",
-                    outline: "none",
-                    boxSizing: "border-box",
-                    fontFamily: "inherit",
-                  }}
-                  onFocus={(e) => {
-                    e.target.style.borderColor = "#3b82f6";
-                    e.target.style.boxShadow = "0 0 0 3px rgba(59, 130, 246, 0.1)";
-                  }}
-                  onBlur={(e) => {
-                    e.target.style.borderColor = "#e2e8f0";
-                    e.target.style.boxShadow = "none";
-                  }}
-                />
-              </div>
-            </div>
-
-            <button 
-              type="submit" 
-              style={{
-                width: "100%",
-                padding: "1rem",
-                background: "linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)",
-                color: "white",
-                border: "none",
-                borderRadius: "12px",
-                fontSize: "1rem",
-                fontWeight: "700",
-                cursor: "pointer",
-                transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-                boxShadow: "0 4px 12px rgba(30, 64, 175, 0.3)",
-                letterSpacing: "0.02em",
-              }}
-              onMouseEnter={(e) => {
-                e.target.style.transform = "translateY(-2px)";
-                e.target.style.boxShadow = "0 8px 20px rgba(30, 64, 175, 0.4)";
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.transform = "translateY(0)";
-                e.target.style.boxShadow = "0 4px 12px rgba(30, 64, 175, 0.3)";
-              }}
-            >
-              Continue to Password
-            </button>
-            
-            <div style={{ textAlign: "center", marginTop: "1.75rem" }}>
-              <p style={{ color: "#64748b", fontSize: "0.9rem" }}>
-                Already have an account?{" "}
-                <Link to="/login" style={{ 
-                  color: "#1e40af", 
-                  fontWeight: "700",
-                  textDecoration: "none",
-                  transition: "color 0.2s ease",
-                }}>
-                  Sign In
-                </Link>
+              <h1 style={{ fontSize:"1.5rem", fontWeight:"700", color: T.text, margin:0, letterSpacing:"-0.02em" }}>
+                Create account
+              </h1>
+              <p style={{ color: T.textMuted, fontSize:"0.875rem", margin:"0.3rem 0 0", fontWeight:"400" }}>
+                Register your organization to get started
               </p>
             </div>
-          </form>
-        )}
 
-        {/* Step 2: Create Password */}
-        {currentStep === 2 && (
-          <form onSubmit={handleStep2Submit}>
-            <div style={{ marginBottom: "1.5rem" }}>
-              <h2 style={{
-                fontSize: "clamp(1.1rem, 3vw, 1.3rem)",
-                fontWeight: "700",
-                marginBottom: "1.5rem",
-                color: "#1e293b",
-                display: "flex",
-                alignItems: "center",
-                gap: "0.75rem",
-              }}>
-                <div style={{
-                  width: "36px",
-                  height: "36px",
-                  borderRadius: "10px",
-                  background: "linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}>
-                  <i className="fas fa-lock" style={{ color: "#1e40af", fontSize: "1rem" }}></i>
-                </div>
-                Create Password
-              </h2>
-
-              <div style={{ marginBottom: "1.25rem" }}>
-                <label style={{
-                  display: "block",
-                  fontWeight: "600",
-                  marginBottom: "0.6rem",
-                  color: "#334155",
-                  fontSize: "0.9rem",
-                }}>
-                  Password <span style={{ color: "#ef4444" }}>*</span>
-                </label>
-                <input
-                  type="password"
-                  name="password"
-                  value={formData.password}
-                  onChange={handleChange}
-                  placeholder="Enter a strong password (min. 8 characters)"
-                  required
-                  style={{
-                    width: "100%",
-                    padding: "0.875rem 1.125rem",
-                    border: "2px solid #e2e8f0",
-                    borderRadius: "12px",
-                    fontSize: "0.95rem",
-                    transition: "all 0.2s ease",
-                    outline: "none",
-                    boxSizing: "border-box",
-                    fontFamily: "inherit",
-                  }}
-                  onFocus={(e) => {
-                    e.target.style.borderColor = "#3b82f6";
-                    e.target.style.boxShadow = "0 0 0 3px rgba(59, 130, 246, 0.1)";
-                  }}
-                  onBlur={(e) => {
-                    e.target.style.borderColor = "#e2e8f0";
-                    e.target.style.boxShadow = "none";
-                  }}
-                />
-              </div>
-
-              <div style={{ marginBottom: "1.25rem" }}>
-                <label style={{
-                  display: "block",
-                  fontWeight: "600",
-                  marginBottom: "0.6rem",
-                  color: "#334155",
-                  fontSize: "0.9rem",
-                }}>
-                  Confirm Password <span style={{ color: "#ef4444" }}>*</span>
-                </label>
-                <input
-                  type="password"
-                  name="confirm_password"
-                  value={formData.confirm_password}
-                  onChange={handleChange}
-                  placeholder="Re-enter your password"
-                  required
-                  style={{
-                    width: "100%",
-                    padding: "0.875rem 1.125rem",
-                    border: "2px solid #e2e8f0",
-                    borderRadius: "12px",
-                    fontSize: "0.95rem",
-                    transition: "all 0.2s ease",
-                    outline: "none",
-                    boxSizing: "border-box",
-                    fontFamily: "inherit",
-                  }}
-                  onFocus={(e) => {
-                    e.target.style.borderColor = "#3b82f6";
-                    e.target.style.boxShadow = "0 0 0 3px rgba(59, 130, 246, 0.1)";
-                  }}
-                  onBlur={(e) => {
-                    e.target.style.borderColor = "#e2e8f0";
-                    e.target.style.boxShadow = "none";
-                  }}
-                />
-              </div>
-            </div>
-
-            <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
-              <button
-                type="button"
-                onClick={() => setCurrentStep(1)}
-                style={{
-                  flex: "1 1 140px",
-                  padding: "1rem",
-                  border: "2px solid #e2e8f0",
-                  borderRadius: "12px",
-                  background: "white",
-                  color: "#64748b",
-                  fontSize: "1rem",
-                  fontWeight: "700",
-                  cursor: "pointer",
-                  transition: "all 0.2s ease",
-                }}
-                onMouseEnter={(e) => {
-                  e.target.style.borderColor = "#cbd5e1";
-                  e.target.style.background = "#f8fafc";
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.borderColor = "#e2e8f0";
-                  e.target.style.background = "white";
-                }}
-              >
-                Back
-              </button>
-              <button 
-                type="submit"
-                style={{
-                  flex: "1 1 200px",
-                  padding: "1rem",
-                  background: "linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)",
-                  color: "white",
-                  border: "none",
-                  borderRadius: "12px",
-                  fontSize: "1rem",
-                  fontWeight: "700",
-                  cursor: "pointer",
-                  transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-                  boxShadow: "0 4px 12px rgba(30, 64, 175, 0.3)",
-                }}
-                onMouseEnter={(e) => {
-                  e.target.style.transform = "translateY(-2px)";
-                  e.target.style.boxShadow = "0 8px 20px rgba(30, 64, 175, 0.4)";
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.transform = "translateY(0)";
-                  e.target.style.boxShadow = "0 4px 12px rgba(30, 64, 175, 0.3)";
-                }}
-              >
-                Continue to Details
-              </button>
-            </div>
-          </form>
-        )}
-
-        {/* Step 3: Company and Business Details */}
-        {currentStep === 3 && (
-          <form onSubmit={handleStep3Submit} style={{ maxHeight: "520px", overflowY: "auto", paddingRight: "10px" }}>
-            <div style={{ marginBottom: "1.5rem" }}>
-              <h2 style={{
-                fontSize: "clamp(1.1rem, 3vw, 1.3rem)",
-                fontWeight: "700",
-                marginBottom: "1.5rem",
-                color: "#1e293b",
-                display: "flex",
-                alignItems: "center",
-                gap: "0.75rem",
-              }}>
-                <div style={{
-                  width: "36px",
-                  height: "36px",
-                  borderRadius: "10px",
-                  background: "linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}>
-                  <i className="fas fa-building" style={{ color: "#1e40af", fontSize: "1rem" }}></i>
-                </div>
-                Company Details
-              </h2>
-
-              <div style={{ marginBottom: "1.25rem" }}>
-                <label style={{
-                  display: "block",
-                  fontWeight: "600",
-                  marginBottom: "0.6rem",
-                  color: "#334155",
-                  fontSize: "0.9rem",
-                }}>
-                  Company Name <span style={{ color: "#ef4444" }}>*</span>
-                </label>
-                <input
-                  type="text"
-                  name="company_name"
-                  value={formData.company_name}
-                  onChange={handleChange}
-                  placeholder="Enter your company name"
-                  required
-                  style={{
-                    width: "100%",
-                    padding: "0.875rem 1.125rem",
-                    border: "2px solid #e2e8f0",
-                    borderRadius: "12px",
-                    fontSize: "0.95rem",
-                    transition: "all 0.2s ease",
-                    outline: "none",
-                    boxSizing: "border-box",
-                    fontFamily: "inherit",
-                  }}
-                  onFocus={(e) => {
-                    e.target.style.borderColor = "#3b82f6";
-                    e.target.style.boxShadow = "0 0 0 3px rgba(59, 130, 246, 0.1)";
-                  }}
-                  onBlur={(e) => {
-                    e.target.style.borderColor = "#e2e8f0";
-                    e.target.style.boxShadow = "none";
-                  }}
-                />
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "1rem", marginBottom: "1.25rem" }}>
-                <div>
-                  <label style={{
-                    display: "block",
-                    fontWeight: "600",
-                    marginBottom: "0.6rem",
-                    color: "#334155",
-                    fontSize: "0.9rem",
-                  }}>
-                    Company Type <span style={{ color: "#ef4444" }}>*</span>
-                  </label>
-                  <select
-                    name="company_type"
-                    value={formData.company_type}
-                    onChange={handleChange}
-                    required
-                    style={{
-                      width: "100%",
-                      padding: "0.875rem 1.125rem",
-                      border: "2px solid #e2e8f0",
-                      borderRadius: "12px",
-                      fontSize: "0.95rem",
-                      transition: "all 0.2s ease",
-                      outline: "none",
-                      boxSizing: "border-box",
-                      background: "white",
-                      fontFamily: "inherit",
-                    }}
-                    onFocus={(e) => {
-                      e.target.style.borderColor = "#3b82f6";
-                      e.target.style.boxShadow = "0 0 0 3px rgba(59, 130, 246, 0.1)";
-                    }}
-                    onBlur={(e) => {
-                      e.target.style.borderColor = "#e2e8f0";
-                      e.target.style.boxShadow = "none";
-                    }}
-                  >
-                    <option value="">Select Type</option>
-                    <option value="NBFC">NBFC</option>
-                    <option value="Bank">Bank</option>
-                    <option value="Fintech">Fintech</option>
-                    <option value="Other">Other</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label style={{
-                    display: "block",
-                    fontWeight: "600",
-                    marginBottom: "0.6rem",
-                    color: "#334155",
-                    fontSize: "0.9rem",
-                  }}>
-                    Organisation Type <span style={{ color: "#ef4444" }}>*</span>
-                  </label>
-                  <select
-                    name="organisation_type"
-                    value={formData.organisation_type}
-                    onChange={handleChange}
-                    required
-                    style={{
-                      width: "100%",
-                      padding: "0.875rem 1.125rem",
-                      border: "2px solid #e2e8f0",
-                      borderRadius: "12px",
-                      fontSize: "0.95rem",
-                      transition: "all 0.2s ease",
-                      outline: "none",
-                      boxSizing: "border-box",
-                      background: "white",
-                      fontFamily: "inherit",
-                    }}
-                    onFocus={(e) => {
-                      e.target.style.borderColor = "#3b82f6";
-                      e.target.style.boxShadow = "0 0 0 3px rgba(59, 130, 246, 0.1)";
-                    }}
-                    onBlur={(e) => {
-                      e.target.style.borderColor = "#e2e8f0";
-                      e.target.style.boxShadow = "none";
-                    }}
-                  >
-                    <option value="">Select Type</option>
-                    <option value="Private Limited">Private Limited</option>
-                    <option value="LLP">LLP</option>
-                    <option value="Proprietorship">Proprietorship</option>
-                    <option value="Partnership">Partnership</option>
-                  </select>
-                </div>
-              </div>
-
-              {formData.organisation_type === "Proprietorship" ? (
-                <div style={{ marginBottom: "1.25rem" }}>
-                  <label style={{
-                    display: "block",
-                    fontWeight: "600",
-                    marginBottom: "0.6rem",
-                    color: "#334155",
-                    fontSize: "0.9rem",
-                  }}>
-                    Owner PAN <span style={{ color: "#ef4444" }}>*</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="owner_pan"
-                    value={formData.owner_pan}
-                    onChange={handleChange}
-                    placeholder="ABCDE1234F"
-                    maxLength={10}
-                    required
-                    style={{
-                      width: "100%",
-                      padding: "0.875rem 1.125rem",
-                      border: "2px solid #e2e8f0",
-                      borderRadius: "12px",
-                      fontSize: "0.95rem",
-                      transition: "all 0.2s ease",
-                      outline: "none",
-                      boxSizing: "border-box",
-                      fontFamily: "inherit",
-                    }}
-                    onFocus={(e) => {
-                      e.target.style.borderColor = "#3b82f6";
-                      e.target.style.boxShadow = "0 0 0 3px rgba(59, 130, 246, 0.1)";
-                    }}
-                    onBlur={(e) => {
-                      e.target.style.borderColor = "#e2e8f0";
-                      e.target.style.boxShadow = "none";
-                    }}
-                  />
-                </div>
-              ) : (
-                <div style={{ marginBottom: "1.25rem" }}>
-                  <label style={{
-                    display: "block",
-                    fontWeight: "600",
-                    marginBottom: "0.6rem",
-                    color: "#334155",
-                    fontSize: "0.9rem",
-                  }}>
-                    Company PAN <span style={{ color: "#ef4444" }}>*</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="company_pan"
-                    value={formData.company_pan}
-                    onChange={handleChange}
-                    placeholder="ABCDE1234F"
-                    maxLength={10}
-                    required
-                    style={{
-                      width: "100%",
-                      padding: "0.875rem 1.125rem",
-                      border: "2px solid #e2e8f0",
-                      borderRadius: "12px",
-                      fontSize: "0.95rem",
-                      transition: "all 0.2s ease",
-                      outline: "none",
-                      boxSizing: "border-box",
-                      fontFamily: "inherit",
-                    }}
-                    onFocus={(e) => {
-                      e.target.style.borderColor = "#3b82f6";
-                      e.target.style.boxShadow = "0 0 0 3px rgba(59, 130, 246, 0.1)";
-                    }}
-                    onBlur={(e) => {
-                      e.target.style.borderColor = "#e2e8f0";
-                      e.target.style.boxShadow = "none";
-                    }}
-                  />
-                </div>
-              )}
-
-              <div style={{ marginBottom: "1.25rem" }}>
-                <label style={{
-                  display: "block",
-                  fontWeight: "600",
-                  marginBottom: "0.6rem",
-                  color: "#334155",
-                  fontSize: "0.9rem",
-                }}>
-                  GST Number <span style={{ color: "#ef4444" }}>*</span>
-                </label>
-                <input
-                  type="text"
-                  name="gst_number"
-                  value={formData.gst_number}
-                  onChange={handleChange}
-                  placeholder="27AAAAA0000A1Z5"
-                  maxLength={15}
-                  required
-                  style={{
-                    width: "100%",
-                    padding: "0.875rem 1.125rem",
-                    border: "2px solid #e2e8f0",
-                    borderRadius: "12px",
-                    fontSize: "0.95rem",
-                    transition: "all 0.2s ease",
-                    outline: "none",
-                    boxSizing: "border-box",
-                    fontFamily: "inherit",
-                  }}
-                  onFocus={(e) => {
-                    e.target.style.borderColor = "#3b82f6";
-                    e.target.style.boxShadow = "0 0 0 3px rgba(59, 130, 246, 0.1)";
-                  }}
-                  onBlur={(e) => {
-                    e.target.style.borderColor = "#e2e8f0";
-                    e.target.style.boxShadow = "none";
-                  }}
-                />
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "1rem", marginBottom: "1.25rem" }}>
-                <div>
-                  <label style={{
-                    display: "block",
-                    fontWeight: "600",
-                    marginBottom: "0.6rem",
-                    color: "#334155",
-                    fontSize: "0.9rem",
-                  }}>
-                    Number of Users <span style={{ color: "#ef4444" }}>*</span>
-                  </label>
-                  <input
-                    type="number"
-                    name="number_of_users"
-                    value={formData.number_of_users}
-                    onChange={handleChange}
-                    placeholder="e.g., 10"
-                    min="1"
-                    required
-                    style={{
-                      width: "100%",
-                      padding: "0.875rem 1.125rem",
-                      border: "2px solid #e2e8f0",
-                      borderRadius: "12px",
-                      fontSize: "0.95rem",
-                      transition: "all 0.2s ease",
-                      outline: "none",
-                      boxSizing: "border-box",
-                      fontFamily: "inherit",
-                    }}
-                    onFocus={(e) => {
-                      e.target.style.borderColor = "#3b82f6";
-                      e.target.style.boxShadow = "0 0 0 3px rgba(59, 130, 246, 0.1)";
-                    }}
-                    onBlur={(e) => {
-                      e.target.style.borderColor = "#e2e8f0";
-                      e.target.style.boxShadow = "none";
-                    }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{
-                    display: "block",
-                    fontWeight: "600",
-                    marginBottom: "0.6rem",
-                    color: "#334155",
-                    fontSize: "0.9rem",
-                  }}>
-                    Current AUM <span style={{ color: "#ef4444" }}>*</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="current_aum"
-                    value={formData.current_aum}
-                    onChange={handleChange}
-                    placeholder="e.g., 50 Crores"
-                    required
-                    style={{
-                      width: "100%",
-                      padding: "0.875rem 1.125rem",
-                      border: "2px solid #e2e8f0",
-                      borderRadius: "12px",
-                      fontSize: "0.95rem",
-                      transition: "all 0.2s ease",
-                      outline: "none",
-                      boxSizing: "border-box",
-                      fontFamily: "inherit",
-                    }}
-                    onFocus={(e) => {
-                      e.target.style.borderColor = "#3b82f6";
-                      e.target.style.boxShadow = "0 0 0 3px rgba(59, 130, 246, 0.1)";
-                    }}
-                    onBlur={(e) => {
-                      e.target.style.borderColor = "#e2e8f0";
-                      e.target.style.boxShadow = "none";
-                    }}
-                  />
-                </div>
-              </div>
-
-              <div style={{ marginBottom: "1.25rem" }} ref={dropdownRef}>
-                <label style={{
-                  display: "block",
-                  fontWeight: "600",
-                  marginBottom: "0.6rem",
-                  color: "#334155",
-                  fontSize: "0.9rem",
-                }}>
-                  Loan Products <span style={{ color: "#ef4444" }}>*</span>
-                </label>
-                <div style={{ position: "relative" }}>
-                  <div
-                    onClick={toggleLoanProductsDropdown}
-                    style={{
-                      width: "100%",
-                      padding: "0.875rem 1.125rem",
-                      border: "2px solid #e2e8f0",
-                      borderRadius: "12px",
-                      fontSize: "0.95rem",
-                      cursor: "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                      flexWrap: "wrap",
-                      gap: "0.5rem",
-                      minHeight: "52px",
-                      boxSizing: "border-box",
-                      background: "white",
-                      transition: "all 0.2s ease",
-                    }}
-                  >
-                    {formData.loan_products.length > 0 ? (
-                      formData.loan_products.map((product, index) => (
-                        <span key={index} style={{
-                          background: "linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)",
-                          color: "#1e40af",
-                          borderRadius: "20px",
-                          padding: "0.35rem 0.85rem",
-                          fontSize: "0.85rem",
-                          fontWeight: "600",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "0.5rem",
-                        }}>
-                          {product}
-                          <i
-                            className="fas fa-times"
-                            style={{ cursor: "pointer", fontSize: "0.75rem" }}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleLoanProductToggle(product);
-                            }}
-                          ></i>
-                        </span>
-                      ))
-                    ) : (
-                      <span style={{ color: "#94a3b8" }}>Select loan products...</span>
-                    )}
-                    <i
-                      className={`fas fa-chevron-${loanProductsDropdownOpen ? "up" : "down"}`}
-                      style={{
-                        position: "absolute",
-                        right: "1.125rem",
-                        color: "#64748b",
-                        pointerEvents: "none",
-                      }}
-                    ></i>
-                  </div>
-                  {loanProductsDropdownOpen && (
-                    <div style={{
-                      position: "absolute",
-                      top: "calc(100% + 0.5rem)",
-                      left: "0",
-                      right: "0",
-                      background: "white",
-                      border: "2px solid #e2e8f0",
-                      borderRadius: "12px",
-                      maxHeight: "200px",
-                      overflowY: "auto",
-                      zIndex: "10",
-                      boxShadow: "0 10px 25px rgba(0, 0, 0, 0.1)",
-                    }}>
-                      {loanProductsOptions.map((product, index) => (
-                        <div
-                          key={index}
-                          onClick={() => handleLoanProductToggle(product)}
-                          style={{
-                            padding: "0.875rem 1.125rem",
-                            cursor: "pointer",
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "center",
-                            background: formData.loan_products.includes(product) 
-                              ? "linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)" 
-                              : "white",
-                            color: formData.loan_products.includes(product) ? "#1e40af" : "#334155",
-                            fontWeight: formData.loan_products.includes(product) ? "600" : "normal",
-                            transition: "all 0.2s ease",
-                          }}
-                          onMouseEnter={(e) => {
-                            if (!formData.loan_products.includes(product)) {
-                              e.target.style.background = "#f8fafc";
-                            }
-                          }}
-                          onMouseLeave={(e) => {
-                            if (!formData.loan_products.includes(product)) {
-                              e.target.style.background = "white";
-                            }
-                          }}
-                        >
-                          {product}
-                          {formData.loan_products.includes(product) && (
-                            <i className="fas fa-check"></i>
-                          )}
-                        </div>
-                      ))}
+            {/* Step Progress */}
+            <div style={{ display:"flex", alignItems:"center", marginBottom:"2rem", gap:"0" }}>
+              {steps.map((label, i) => {
+                const s = i + 1;
+                const done    = currentStep > s;
+                const active  = currentStep === s;
+                return (
+                  <React.Fragment key={s}>
+                    <div style={{ display:"flex", flexDirection:"column", alignItems:"center", flex:"0 0 auto" }}>
+                      <div className="auth-step-dot" style={{
+                        width: "32px", height: "32px", borderRadius: "50%",
+                        background: done ? T.primary : active ? T.white : T.white,
+                        border: `2px solid ${done || active ? T.primary : T.border}`,
+                        display:"flex", alignItems:"center", justifyContent:"center",
+                        color: done ? T.white : active ? T.primary : T.textMuted,
+                        fontSize: "0.78rem", fontWeight:"700",
+                        boxShadow: active ? `0 0 0 4px rgba(26,86,219,0.12)` : "none",
+                      }}>
+                        {done
+                          ? <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                          : s}
+                      </div>
+                      <span style={{
+                        fontSize:"0.7rem", marginTop:"0.35rem",
+                        color: active ? T.primary : done ? T.textSub : T.textMuted,
+                        fontWeight: active ? "700" : "500",
+                        whiteSpace:"nowrap",
+                      }}>{label}</span>
                     </div>
+                    {i < steps.length - 1 && (
+                      <div style={{
+                        flex:1, height:"2px", margin:"0 4px", marginBottom:"20px",
+                        background: currentStep > s ? T.primary : T.border,
+                        transition:"background 0.3s ease",
+                      }}/>
+                    )}
+                  </React.Fragment>
+                );
+              })}
+            </div>
+
+            {/* Error */}
+            {error && (
+              <div style={{
+                background: T.errorBg, border:`1px solid ${T.errorBorder}`,
+                color: T.error, borderRadius: T.radius,
+                padding:"0.75rem 1rem", marginBottom:"1.25rem",
+                fontSize:"0.85rem", fontWeight:"500", lineHeight:"1.5",
+                display:"flex", gap:"0.625rem", alignItems:"flex-start",
+              }}>
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{flexShrink:0, marginTop:"1px"}}>
+                  <circle cx="8" cy="8" r="7" stroke="#dc2626" strokeWidth="1.5"/>
+                  <path d="M8 5v3.5M8 11h.01" stroke="#dc2626" strokeWidth="1.5" strokeLinecap="round"/>
+                </svg>
+                {error}
+              </div>
+            )}
+
+            {/* ── STEP 1 ── */}
+            {currentStep === 1 && (
+              <form onSubmit={step1} className="auth-step-panel">
+                <SectionLabel icon="👤">Basic Contact Information</SectionLabel>
+                <Field label="Full Name">
+                  <input className="auth-input" type="text" name="full_name" value={formData.full_name}
+                    onChange={handleChange} placeholder="Enter your full name" required style={inp}/>
+                </Field>
+                <Field label="Email Address">
+                  <input className="auth-input" type="email" name="email" value={formData.email}
+                    onChange={handleChange} placeholder="you@company.com" required style={inp}/>
+                </Field>
+                <Field label="Phone Number">
+                  <input className="auth-input" type="tel" name="phone_number" value={formData.phone_number}
+                    onChange={handleChange} placeholder="+91 98765 43210" required style={inp}/>
+                </Field>
+                <PrimaryBtn loading={loading} label="Continue" loadingLabel="Sending OTP…"/>
+                <div style={{ textAlign:"center", marginTop:"1.25rem" }}>
+                  <span style={{ fontSize:"0.85rem", color: T.textMuted }}>Already have an account? </span>
+                  <Link to="/login" style={{ fontSize:"0.85rem", color: T.primary, fontWeight:"600", textDecoration:"none" }}>Sign In</Link>
+                </div>
+              </form>
+            )}
+
+            {/* ── STEP 2 ── */}
+            {currentStep === 2 && (
+              <form onSubmit={step2} className="auth-step-panel">
+                <SectionLabel icon="🔐">Verify Your Contact</SectionLabel>
+                <p style={{ fontSize:"0.875rem", color: T.textSub, margin:"-0.25rem 0 1.25rem", lineHeight:"1.6" }}>
+                  OTP sent to your email and phone. Enter both codes below.
+                </p>
+                <Field label="Email OTP">
+                  <input className="auth-input" type="text" value={emailOtp}
+                    onChange={e => setEmailOtp(e.target.value)} placeholder="• • • • • •"
+                    maxLength={6} required style={{ ...inp, textAlign:"center", letterSpacing:"0.5rem", fontFamily:"'DM Mono', monospace", fontWeight:"500" }}/>
+                  <HintText>Sent to <strong style={{color:T.primary}}>{formData.email}</strong></HintText>
+                </Field>
+                <Field label="Phone OTP">
+                  <input className="auth-input" type="text" value={phoneOtp}
+                    onChange={e => setPhoneOtp(e.target.value)} placeholder="• • • • • •"
+                    maxLength={6} required style={{ ...inp, textAlign:"center", letterSpacing:"0.5rem", fontFamily:"'DM Mono', monospace", fontWeight:"500" }}/>
+                  <HintText>Sent to <strong style={{color:T.primary}}>{formData.phone_number}</strong></HintText>
+                </Field>
+                <button type="button" onClick={resendOtp} disabled={loading}
+                  style={{ background:"none", border:"none", color: T.primary, cursor:"pointer", fontSize:"0.85rem", fontWeight:"600", padding:"0", marginBottom:"1.25rem", textDecoration:"underline", textUnderlineOffset:"2px" }}>
+                  Resend OTP
+                </button>
+                <BtnRow onBack={() => setCurrentStep(1)} loading={loading} label="Verify & Continue" loadingLabel="Verifying…"/>
+              </form>
+            )}
+
+            {/* ── STEP 3 ── */}
+            {currentStep === 3 && (
+              <form onSubmit={step3} className="auth-step-panel">
+                <SectionLabel icon="🔑">Create Password</SectionLabel>
+                <Field label="Password">
+                  <input className="auth-input" type="password" name="password" value={formData.password}
+                    onChange={handleChange} placeholder="Minimum 8 characters" required style={inp}/>
+                </Field>
+                <Field label="Confirm Password">
+                  <input className="auth-input" type="password" name="confirm_password" value={formData.confirm_password}
+                    onChange={handleChange} placeholder="Re-enter your password" required style={inp}/>
+                </Field>
+                <BtnRow onBack={() => setCurrentStep(2)} loading={loading} label="Continue to Details" loadingLabel="…"/>
+              </form>
+            )}
+
+            {/* ── STEP 4 ── */}
+            {currentStep === 4 && (
+              <form onSubmit={step4} className="auth-step-panel">
+                <div style={{ maxHeight:"440px", overflowY:"auto", paddingRight:"6px", marginRight:"-6px" }}>
+                  <SectionLabel icon="🏢">Company Details</SectionLabel>
+
+                  <Field label="Company Name">
+                    <input className="auth-input" type="text" name="company_name" value={formData.company_name}
+                      onChange={handleChange} placeholder="Your company name" required style={inp}/>
+                  </Field>
+
+                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0.875rem", marginBottom:"0.875rem" }}>
+                    <Field label="Company Type" noMargin>
+                      <select className="auth-select auth-input" name="company_type" value={formData.company_type}
+                        onChange={handleChange} required style={{ ...inp, cursor:"pointer" }}>
+                        <option value="">Select…</option>
+                        {["NBFC","Bank","Fintech","Other"].map(o => <option key={o}>{o}</option>)}
+                      </select>
+                    </Field>
+                    <Field label="Organisation Type" noMargin>
+                      <select className="auth-select auth-input" name="organisation_type" value={formData.organisation_type}
+                        onChange={handleChange} required style={{ ...inp, cursor:"pointer" }}>
+                        <option value="">Select…</option>
+                        {["Private Limited","LLP","Proprietorship","Partnership"].map(o => <option key={o}>{o}</option>)}
+                      </select>
+                    </Field>
+                  </div>
+
+                  {formData.organisation_type === "Proprietorship" ? (
+                    <Field label="Owner PAN">
+                      <input className="auth-input" type="text" name="owner_pan" value={formData.owner_pan}
+                        onChange={handleChange} placeholder="ABCDE1234F" maxLength={10} required
+                        style={{ ...inp, fontFamily:"'DM Mono', monospace", letterSpacing:"0.08em" }}/>
+                    </Field>
+                  ) : (
+                    <Field label="Company PAN">
+                      <input className="auth-input" type="text" name="company_pan" value={formData.company_pan}
+                        onChange={handleChange} placeholder="ABCDE1234F" maxLength={10} required
+                        style={{ ...inp, fontFamily:"'DM Mono', monospace", letterSpacing:"0.08em" }}/>
+                    </Field>
+                  )}
+
+                  <Field label="GST Number">
+                    <input className="auth-input" type="text" name="gst_number" value={formData.gst_number}
+                      onChange={handleChange} placeholder="27AAAAA0000A1Z5" maxLength={15} required
+                      style={{ ...inp, fontFamily:"'DM Mono', monospace", letterSpacing:"0.05em" }}/>
+                  </Field>
+
+                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0.875rem", marginBottom:"0.875rem" }}>
+                    <Field label="Number of Users" noMargin>
+                      <input className="auth-input" type="number" name="number_of_users" value={formData.number_of_users}
+                        onChange={handleChange} placeholder="e.g. 10" min="1" required style={inp}/>
+                    </Field>
+                    <Field label="Current AUM" noMargin>
+                      <input className="auth-input" type="text" name="current_aum" value={formData.current_aum}
+                        onChange={handleChange} placeholder="e.g. 50 Crores" required style={inp}/>
+                    </Field>
+                  </div>
+
+                  {/* Loan Products Dropdown */}
+                  <div style={{ marginBottom:"0.875rem" }} ref={dropdownRef}>
+                    <label style={lbl}>Loan Products <Req/></label>
+                    <div style={{ position:"relative" }}>
+                      <div onClick={() => setDropdownOpen(!dropdownOpen)} style={{
+                        ...inp, cursor:"pointer", display:"flex", alignItems:"center",
+                        flexWrap:"wrap", gap:"0.375rem", minHeight:"44px",
+                      }}>
+                        {formData.loan_products.length > 0
+                          ? formData.loan_products.map((p,i) => (
+                            <span key={i} style={{
+                              background: T.primaryLight, color: T.primary, border:`1px solid ${T.primaryBorder}`,
+                              borderRadius:"6px", padding:"0.2rem 0.6rem", fontSize:"0.78rem", fontWeight:"600",
+                              display:"flex", alignItems:"center", gap:"0.375rem",
+                            }}>
+                              {p}
+                              <span onClick={ev => { ev.stopPropagation(); toggleProduct(p); }}
+                                style={{ cursor:"pointer", opacity:0.7, fontSize:"0.75rem", lineHeight:1 }}>✕</span>
+                            </span>
+                          ))
+                          : <span style={{ color: T.textMuted, fontSize:"0.875rem" }}>Select products…</span>
+                        }
+                        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ position:"absolute", right:"0.875rem", flexShrink:0, color: T.textMuted }}>
+                          <path d={dropdownOpen ? "M2 9l5-5 5 5" : "M2 5l5 5 5-5"} stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      </div>
+                      {dropdownOpen && (
+                        <div style={{
+                          position:"absolute", top:"calc(100% + 4px)", left:0, right:0, zIndex:20,
+                          background: T.white, border:`1.5px solid ${T.border}`,
+                          borderRadius: T.radius, boxShadow: T.shadowMd,
+                          overflow:"hidden",
+                        }}>
+                          {loanOptions.map((p,i) => {
+                            const sel = formData.loan_products.includes(p);
+                            return (
+                              <div key={i} className="auth-dropdown-item" onClick={() => toggleProduct(p)} style={{
+                                padding:"0.6rem 0.875rem", cursor:"pointer", fontSize:"0.875rem",
+                                display:"flex", justifyContent:"space-between", alignItems:"center",
+                                background: sel ? T.primaryLight : "transparent",
+                                color: sel ? T.primary : T.text,
+                                fontWeight: sel ? "600" : "400",
+                                borderBottom: i < loanOptions.length-1 ? `1px solid ${T.border}` : "none",
+                                transition:"background 0.12s",
+                              }}>
+                                {p}
+                                {sel && <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2.5 7l3.5 3.5 6-6" stroke={T.primary} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Address */}
+                  <Divider label="Business Address" icon="📍"/>
+                  <Field label="Address Line 1">
+                    <input className="auth-input" type="text" name="address_line1" value={formData.address_line1}
+                      onChange={handleChange} placeholder="Street address" required style={inp}/>
+                  </Field>
+                  <Field label="Address Line 2 (optional)">
+                    <input className="auth-input" type="text" name="address_line2" value={formData.address_line2}
+                      onChange={handleChange} placeholder="Apartment, suite, etc." style={inp}/>
+                  </Field>
+                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0.875rem", marginBottom:"0.875rem" }}>
+                    <Field label="City" noMargin>
+                      <input className="auth-input" type="text" name="city" value={formData.city}
+                        onChange={handleChange} placeholder="City" required style={inp}/>
+                    </Field>
+                    <Field label="State" noMargin>
+                      <input className="auth-input" type="text" name="state" value={formData.state}
+                        onChange={handleChange} placeholder="State" required style={inp}/>
+                    </Field>
+                  </div>
+                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0.875rem", marginBottom:"0.875rem" }}>
+                    <Field label="Pincode" noMargin>
+                      <input className="auth-input" type="text" name="pincode" value={formData.pincode}
+                        onChange={handleChange} placeholder="Pincode" required style={inp}/>
+                    </Field>
+                    <Field label="Country" noMargin>
+                      <input className="auth-input" type="text" name="country" value={formData.country}
+                        onChange={handleChange} placeholder="Country" required style={inp}/>
+                    </Field>
+                  </div>
+
+                  {/* Branches */}
+                  <Divider label="Branch Requirements" icon="🏗️"/>
+                  <Field label="Do you require branches?">
+                    <select className="auth-select auth-input" name="require_branches" value={formData.require_branches}
+                      onChange={handleChange} required style={{ ...inp, cursor:"pointer" }}>
+                      <option value="">Select…</option>
+                      <option value="Yes">Yes</option>
+                      <option value="No">No</option>
+                    </select>
+                  </Field>
+                  {formData.require_branches === "Yes" && (
+                    <Field label="Number of Branches">
+                      <input className="auth-input" type="number" name="number_of_branches" value={formData.number_of_branches}
+                        onChange={handleChange} placeholder="e.g. 5" min="1" required style={inp}/>
+                    </Field>
                   )}
                 </div>
-              </div>
 
-              {/* Address Section */}
-              <h3 style={{
-                fontSize: "clamp(1rem, 2.5vw, 1.15rem)",
-                fontWeight: "700",
-                marginTop: "2rem",
-                marginBottom: "1rem",
-                color: "#1e293b",
-                display: "flex",
-                alignItems: "center",
-                gap: "0.75rem",
-              }}>
-                <div style={{
-                  width: "32px",
-                  height: "32px",
-                  borderRadius: "8px",
-                  background: "linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}>
-                  <i className="fas fa-map-marker-alt" style={{ color: "#1e40af", fontSize: "0.9rem" }}></i>
+                <div style={{ paddingTop:"1rem", borderTop:`1px solid ${T.border}`, marginTop:"1rem" }}>
+                  <BtnRow onBack={() => setCurrentStep(3)} loading={loading} label="Create Account" loadingLabel="Creating account…"/>
                 </div>
-                Business Address
-              </h3>
+              </form>
+            )}
 
-              <div style={{ marginBottom: "1.25rem" }}>
-                <label style={{
-                  display: "block",
-                  fontWeight: "600",
-                  marginBottom: "0.6rem",
-                  color: "#334155",
-                  fontSize: "0.9rem",
-                }}>
-                  Address Line 1 <span style={{ color: "#ef4444" }}>*</span>
-                </label>
-                <input
-                  type="text"
-                  name="address_line1"
-                  value={formData.address_line1}
-                  onChange={handleChange}
-                  placeholder="Street address"
-                  required
-                  style={{
-                    width: "100%",
-                    padding: "0.875rem 1.125rem",
-                    border: "2px solid #e2e8f0",
-                    borderRadius: "12px",
-                    fontSize: "0.95rem",
-                    transition: "all 0.2s ease",
-                    outline: "none",
-                    boxSizing: "border-box",
-                    fontFamily: "inherit",
-                  }}
-                  onFocus={(e) => {
-                    e.target.style.borderColor = "#3b82f6";
-                    e.target.style.boxShadow = "0 0 0 3px rgba(59, 130, 246, 0.1)";
-                  }}
-                  onBlur={(e) => {
-                    e.target.style.borderColor = "#e2e8f0";
-                    e.target.style.boxShadow = "none";
-                  }}
-                />
-              </div>
-
-              <div style={{ marginBottom: "1.25rem" }}>
-                <label style={{
-                  display: "block",
-                  fontWeight: "600",
-                  marginBottom: "0.6rem",
-                  color: "#334155",
-                  fontSize: "0.9rem",
-                }}>
-                  Address Line 2
-                </label>
-                <input
-                  type="text"
-                  name="address_line2"
-                  value={formData.address_line2}
-                  onChange={handleChange}
-                  placeholder="Apartment, suite, etc. (optional)"
-                  style={{
-                    width: "100%",
-                    padding: "0.875rem 1.125rem",
-                    border: "2px solid #e2e8f0",
-                    borderRadius: "12px",
-                    fontSize: "0.95rem",
-                    transition: "all 0.2s ease",
-                    outline: "none",
-                    boxSizing: "border-box",
-                    fontFamily: "inherit",
-                  }}
-                  onFocus={(e) => {
-                    e.target.style.borderColor = "#3b82f6";
-                    e.target.style.boxShadow = "0 0 0 3px rgba(59, 130, 246, 0.1)";
-                  }}
-                  onBlur={(e) => {
-                    e.target.style.borderColor = "#e2e8f0";
-                    e.target.style.boxShadow = "none";
-                  }}
-                />
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "1rem", marginBottom: "1.25rem" }}>
-                <div>
-                  <label style={{
-                    display: "block",
-                    fontWeight: "600",
-                    marginBottom: "0.6rem",
-                    color: "#334155",
-                    fontSize: "0.9rem",
-                  }}>
-                    City <span style={{ color: "#ef4444" }}>*</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="city"
-                    value={formData.city}
-                    onChange={handleChange}
-                    placeholder="City"
-                    required
-                    style={{
-                      width: "100%",
-                      padding: "0.875rem 1.125rem",
-                      border: "2px solid #e2e8f0",
-                      borderRadius: "12px",
-                      fontSize: "0.95rem",
-                      transition: "all 0.2s ease",
-                      outline: "none",
-                      boxSizing: "border-box",
-                      fontFamily: "inherit",
-                    }}
-                    onFocus={(e) => {
-                      e.target.style.borderColor = "#3b82f6";
-                      e.target.style.boxShadow = "0 0 0 3px rgba(59, 130, 246, 0.1)";
-                    }}
-                    onBlur={(e) => {
-                      e.target.style.borderColor = "#e2e8f0";
-                      e.target.style.boxShadow = "none";
-                    }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{
-                    display: "block",
-                    fontWeight: "600",
-                    marginBottom: "0.6rem",
-                    color: "#334155",
-                    fontSize: "0.9rem",
-                  }}>
-                    State <span style={{ color: "#ef4444" }}>*</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="state"
-                    value={formData.state}
-                    onChange={handleChange}
-                    placeholder="State"
-                    required
-                    style={{
-                      width: "100%",
-                      padding: "0.875rem 1.125rem",
-                      border: "2px solid #e2e8f0",
-                      borderRadius: "12px",
-                      fontSize: "0.95rem",
-                      transition: "all 0.2s ease",
-                      outline: "none",
-                      boxSizing: "border-box",
-                      fontFamily: "inherit",
-                    }}
-                    onFocus={(e) => {
-                      e.target.style.borderColor = "#3b82f6";
-                      e.target.style.boxShadow = "0 0 0 3px rgba(59, 130, 246, 0.1)";
-                    }}
-                    onBlur={(e) => {
-                      e.target.style.borderColor = "#e2e8f0";
-                      e.target.style.boxShadow = "none";
-                    }}
-                  />
-                </div>
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "1rem", marginBottom: "1.25rem" }}>
-                <div>
-                  <label style={{
-                    display: "block",
-                    fontWeight: "600",
-                    marginBottom: "0.6rem",
-                    color: "#334155",
-                    fontSize: "0.9rem",
-                  }}>
-                    Pincode <span style={{ color: "#ef4444" }}>*</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="pincode"
-                    value={formData.pincode}
-                    onChange={handleChange}
-                    placeholder="Postal code"
-                    required
-                    style={{
-                      width: "100%",
-                      padding: "0.875rem 1.125rem",
-                      border: "2px solid #e2e8f0",
-                      borderRadius: "12px",
-                      fontSize: "0.95rem",
-                      transition: "all 0.2s ease",
-                      outline: "none",
-                      boxSizing: "border-box",
-                      fontFamily: "inherit",
-                    }}
-                    onFocus={(e) => {
-                      e.target.style.borderColor = "#3b82f6";
-                      e.target.style.boxShadow = "0 0 0 3px rgba(59, 130, 246, 0.1)";
-                    }}
-                    onBlur={(e) => {
-                      e.target.style.borderColor = "#e2e8f0";
-                      e.target.style.boxShadow = "none";
-                    }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{
-                    display: "block",
-                    fontWeight: "600",
-                    marginBottom: "0.6rem",
-                    color: "#334155",
-                    fontSize: "0.9rem",
-                  }}>
-                    Country <span style={{ color: "#ef4444" }}>*</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="country"
-                    value={formData.country}
-                    onChange={handleChange}
-                    placeholder="Country"
-                    required
-                    style={{
-                      width: "100%",
-                      padding: "0.875rem 1.125rem",
-                      border: "2px solid #e2e8f0",
-                      borderRadius: "12px",
-                      fontSize: "0.95rem",
-                      transition: "all 0.2s ease",
-                      outline: "none",
-                      boxSizing: "border-box",
-                      fontFamily: "inherit",
-                    }}
-                    onFocus={(e) => {
-                      e.target.style.borderColor = "#3b82f6";
-                      e.target.style.boxShadow = "0 0 0 3px rgba(59, 130, 246, 0.1)";
-                    }}
-                    onBlur={(e) => {
-                      e.target.style.borderColor = "#e2e8f0";
-                      e.target.style.boxShadow = "none";
-                    }}
-                  />
-                </div>
-              </div>
-
-              {/* Branch Requirements */}
-              <h3 style={{
-                fontSize: "clamp(1rem, 2.5vw, 1.15rem)",
-                fontWeight: "700",
-                marginTop: "2rem",
-                marginBottom: "1rem",
-                color: "#1e293b",
-                display: "flex",
-                alignItems: "center",
-                gap: "0.75rem",
-              }}>
-                <div style={{
-                  width: "32px",
-                  height: "32px",
-                  borderRadius: "8px",
-                  background: "linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}>
-                  <i className="fas fa-code-branch" style={{ color: "#1e40af", fontSize: "0.9rem" }}></i>
-                </div>
-                Branch Requirements
-              </h3>
-
-              <div style={{ marginBottom: "1.25rem" }}>
-                <label style={{
-                  display: "block",
-                  fontWeight: "600",
-                  marginBottom: "0.6rem",
-                  color: "#334155",
-                  fontSize: "0.9rem",
-                }}>
-                  Do you require branches? <span style={{ color: "#ef4444" }}>*</span>
-                </label>
-                <select
-                  name="require_branches"
-                  value={formData.require_branches}
-                  onChange={handleChange}
-                  required
-                  style={{
-                    width: "100%",
-                    padding: "0.875rem 1.125rem",
-                    border: "2px solid #e2e8f0",
-                    borderRadius: "12px",
-                    fontSize: "0.95rem",
-                    transition: "all 0.2s ease",
-                    outline: "none",
-                    boxSizing: "border-box",
-                    background: "white",
-                    fontFamily: "inherit",
-                  }}
-                  onFocus={(e) => {
-                    e.target.style.borderColor = "#3b82f6";
-                    e.target.style.boxShadow = "0 0 0 3px rgba(59, 130, 246, 0.1)";
-                  }}
-                  onBlur={(e) => {
-                    e.target.style.borderColor = "#e2e8f0";
-                    e.target.style.boxShadow = "none";
-                  }}
-                >
-                  <option value="">Select...</option>
-                  <option value="Yes">Yes</option>
-                  <option value="No">No</option>
-                </select>
-              </div>
-
-              {formData.require_branches === "Yes" && (
-                <div style={{ marginBottom: "1.25rem" }}>
-                  <label style={{
-                    display: "block",
-                    fontWeight: "600",
-                    marginBottom: "0.6rem",
-                    color: "#334155",
-                    fontSize: "0.9rem",
-                  }}>
-                    Number of Branches <span style={{ color: "#ef4444" }}>*</span>
-                  </label>
-                  <input
-                    type="number"
-                    name="number_of_branches"
-                    value={formData.number_of_branches}
-                    onChange={handleChange}
-                    placeholder="e.g., 5"
-                    min="1"
-                    required
-                    style={{
-                      width: "100%",
-                      padding: "0.875rem 1.125rem",
-                      border: "2px solid #e2e8f0",
-                      borderRadius: "12px",
-                      fontSize: "0.95rem",
-                      transition: "all 0.2s ease",
-                      outline: "none",
-                      boxSizing: "border-box",
-                      fontFamily: "inherit",
-                    }}
-                    onFocus={(e) => {
-                      e.target.style.borderColor = "#3b82f6";
-                      e.target.style.boxShadow = "0 0 0 3px rgba(59, 130, 246, 0.1)";
-                    }}
-                    onBlur={(e) => {
-                      e.target.style.borderColor = "#e2e8f0";
-                      e.target.style.boxShadow = "none";
-                    }}
-                  />
-                </div>
-              )}
-            </div>
-
-            <div style={{ display: "flex", gap: "1rem", position: "sticky", bottom: 0, background: "white", paddingTop: "1rem", flexWrap: "wrap" }}>
-              <button
-                type="button"
-                onClick={() => setCurrentStep(2)}
-                style={{
-                  flex: "1 1 140px",
-                  padding: "1rem",
-                  border: "2px solid #e2e8f0",
-                  borderRadius: "12px",
-                  background: "white",
-                  color: "#64748b",
-                  fontSize: "1rem",
-                  fontWeight: "700",
-                  cursor: "pointer",
-                  transition: "all 0.2s ease",
-                }}
-                onMouseEnter={(e) => {
-                  e.target.style.borderColor = "#cbd5e1";
-                  e.target.style.background = "#f8fafc";
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.borderColor = "#e2e8f0";
-                  e.target.style.background = "white";
-                }}
-              >
-                Back
-              </button>
-              <button 
-                type="submit"
-                style={{
-                  flex: "1 1 200px",
-                  padding: "1rem",
-                  background: "linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)",
-                  color: "white",
-                  border: "none",
-                  borderRadius: "12px",
-                  fontSize: "1rem",
-                  fontWeight: "700",
-                  cursor: "pointer",
-                  transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-                  boxShadow: "0 4px 12px rgba(30, 64, 175, 0.3)",
-                }}
-                onMouseEnter={(e) => {
-                  e.target.style.transform = "translateY(-2px)";
-                  e.target.style.boxShadow = "0 8px 20px rgba(30, 64, 175, 0.4)";
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.transform = "translateY(0)";
-                  e.target.style.boxShadow = "0 4px 12px rgba(30, 64, 175, 0.3)";
-                }}
-              >
-                Continue to Verification
-              </button>
-            </div>
-          </form>
-        )}
-
-        {/* Step 4: OTP Verification */}
-        {currentStep === 4 && (
-          <form onSubmit={handleFinalSubmit}>
-            <div style={{ marginBottom: "1.5rem" }}>
-              <h2 style={{
-                fontSize: "clamp(1.1rem, 3vw, 1.3rem)",
-                fontWeight: "700",
-                marginBottom: "1rem",
-                color: "#1e293b",
-                display: "flex",
-                alignItems: "center",
-                gap: "0.75rem",
-              }}>
-                <div style={{
-                  width: "36px",
-                  height: "36px",
-                  borderRadius: "10px",
-                  background: "linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}>
-                  <i className="fas fa-shield-alt" style={{ color: "#1e40af", fontSize: "1rem" }}></i>
-                </div>
-                Verify Your Contact
-              </h2>
-              <p style={{ 
-                color: "#64748b", 
-                marginBottom: "1.5rem",
-                fontSize: "0.95rem",
-                lineHeight: "1.6",
-              }}>
-                Click "Send OTP" to receive verification codes on your email and phone number.
-              </p>
-
-              <button
-                type="button"
-                onClick={handleSendOtp}
-                disabled={loading}
-                style={{
-                  width: "100%",
-                  padding: "1rem",
-                  border: "2px solid #1e40af",
-                  borderRadius: "12px",
-                  background: "white",
-                  color: "#1e40af",
-                  fontSize: "1rem",
-                  fontWeight: "700",
-                  cursor: loading ? "not-allowed" : "pointer",
-                  marginBottom: "1.5rem",
-                  transition: "all 0.2s ease",
-                  opacity: loading ? 0.6 : 1,
-                }}
-                onMouseEnter={(e) => {
-                  if (!loading) {
-                    e.target.style.background = "#eff6ff";
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.background = "white";
-                }}
-              >
-                {loading ? "Sending OTP..." : "Send OTP"}
-              </button>
-
-              <div style={{ marginBottom: "1.25rem" }}>
-                <label style={{
-                  display: "block",
-                  fontWeight: "600",
-                  marginBottom: "0.6rem",
-                  color: "#334155",
-                  fontSize: "0.9rem",
-                }}>
-                  Email OTP <span style={{ color: "#ef4444" }}>*</span>
-                </label>
-                <input
-                  type="text"
-                  value={emailOtp}
-                  onChange={(e) => setEmailOtp(e.target.value)}
-                  placeholder="Enter 6-digit email OTP"
-                  maxLength={6}
-                  required
-                  style={{
-                    width: "100%",
-                    padding: "0.875rem 1.125rem",
-                    border: "2px solid #e2e8f0",
-                    borderRadius: "12px",
-                    fontSize: "0.95rem",
-                    transition: "all 0.2s ease",
-                    outline: "none",
-                    boxSizing: "border-box",
-                    textAlign: "center",
-                    letterSpacing: "0.5rem",
-                    fontWeight: "700",
-                    fontFamily: "inherit",
-                  }}
-                  onFocus={(e) => {
-                    e.target.style.borderColor = "#3b82f6";
-                    e.target.style.boxShadow = "0 0 0 3px rgba(59, 130, 246, 0.1)";
-                  }}
-                  onBlur={(e) => {
-                    e.target.style.borderColor = "#e2e8f0";
-                    e.target.style.boxShadow = "none";
-                  }}
-                />
-                <div style={{ 
-                  fontSize: "0.85rem", 
-                  color: "#64748b", 
-                  marginTop: "0.6rem",
-                }}>
-                  Sent to: <strong style={{ color: "#1e40af" }}>{formData.email}</strong>
-                </div>
-              </div>
-
-              <div style={{ marginBottom: "1.25rem" }}>
-                <label style={{
-                  display: "block",
-                  fontWeight: "600",
-                  marginBottom: "0.6rem",
-                  color: "#334155",
-                  fontSize: "0.9rem",
-                }}>
-                  Phone OTP <span style={{ color: "#ef4444" }}>*</span>
-                </label>
-                <input
-                  type="text"
-                  value={phoneOtp}
-                  onChange={(e) => setPhoneOtp(e.target.value)}
-                  placeholder="Enter 6-digit phone OTP"
-                  maxLength={6}
-                  required
-                  style={{
-                    width: "100%",
-                    padding: "0.875rem 1.125rem",
-                    border: "2px solid #e2e8f0",
-                    borderRadius: "12px",
-                    fontSize: "0.95rem",
-                    transition: "all 0.2s ease",
-                    outline: "none",
-                    boxSizing: "border-box",
-                    textAlign: "center",
-                    letterSpacing: "0.5rem",
-                    fontWeight: "700",
-                    fontFamily: "inherit",
-                  }}
-                  onFocus={(e) => {
-                    e.target.style.borderColor = "#3b82f6";
-                    e.target.style.boxShadow = "0 0 0 3px rgba(59, 130, 246, 0.1)";
-                  }}
-                  onBlur={(e) => {
-                    e.target.style.borderColor = "#e2e8f0";
-                    e.target.style.boxShadow = "none";
-                  }}
-                />
-                <div style={{ 
-                  fontSize: "0.85rem", 
-                  color: "#64748b", 
-                  marginTop: "0.6rem",
-                }}>
-                  Sent to: <strong style={{ color: "#1e40af" }}>{formData.phone_number}</strong>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={handleResendOtp}
-                disabled={loading}
-                style={{
-                  background: "transparent",
-                  border: "none",
-                  color: "#1e40af",
-                  cursor: loading ? "not-allowed" : "pointer",
-                  padding: "0.5rem 0",
-                  fontSize: "0.9rem",
-                  textDecoration: "underline",
-                  fontWeight: "600",
-                  opacity: loading ? 0.6 : 1,
-                }}
-              >
-                Resend OTP
-              </button>
-            </div>
-
-            <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
-              <button
-                type="button"
-                onClick={() => setCurrentStep(3)}
-                style={{
-                  flex: "1 1 140px",
-                  padding: "1rem",
-                  border: "2px solid #e2e8f0",
-                  borderRadius: "12px",
-                  background: "white",
-                  color: "#64748b",
-                  fontSize: "1rem",
-                  fontWeight: "700",
-                  cursor: "pointer",
-                  transition: "all 0.2s ease",
-                }}
-                onMouseEnter={(e) => {
-                  e.target.style.borderColor = "#cbd5e1";
-                  e.target.style.background = "#f8fafc";
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.borderColor = "#e2e8f0";
-                  e.target.style.background = "white";
-                }}
-              >
-                Back
-              </button>
-              <button 
-                type="submit"
-                disabled={loading}
-                style={{
-                  flex: "1 1 200px",
-                  padding: "1rem",
-                  background: loading 
-                    ? "#94a3b8" 
-                    : "linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)",
-                  color: "white",
-                  border: "none",
-                  borderRadius: "12px",
-                  fontSize: "1rem",
-                  fontWeight: "700",
-                  cursor: loading ? "not-allowed" : "pointer",
-                  transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-                  boxShadow: loading ? "none" : "0 4px 12px rgba(30, 64, 175, 0.3)",
-                }}
-                onMouseEnter={(e) => {
-                  if (!loading) {
-                    e.target.style.transform = "translateY(-2px)";
-                    e.target.style.boxShadow = "0 8px 20px rgba(30, 64, 175, 0.4)";
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!loading) {
-                    e.target.style.transform = "translateY(0)";
-                    e.target.style.boxShadow = "0 4px 12px rgba(30, 64, 175, 0.3)";
-                  }
-                }}
-              >
-                {loading ? "Submitting..." : "Verify & Create Account"}
-              </button>
-            </div>
-          </form>
-        )}
+          </div>
+        </div>
       </div>
-    </div>
+    </>
   );
-};
-
-export default SignUp;
-
-
-
-
-// import React, { useState, useRef, useEffect } from "react";
-// import { Link, useNavigate } from "react-router-dom";
-
-// const SignUp = () => {
-//   const navigate = useNavigate();
-  
-//   // State to manage all form fields
-//   const [formData, setFormData] = useState({
-//     // Page 1: Basic Contact Information
-//     full_name: "",
-//     email: "",
-//     phone_number: "",
-    
-//     // Page 2: Password
-//     password: "",
-//     confirm_password: "",
-    
-//     // Page 3: Company and Business Details
-//     company_name: "",
-//     company_type: "", // NBFC/Bank/Fintech/Other
-//     organisation_type: "", // Private Limited/LLP/Proprietorship/Partnership
-//     company_pan: "",
-//     owner_pan: "",
-//     gst_number: "",
-//     number_of_users: "",
-//     current_aum: "",
-//     loan_products: [], // Multi-select
-    
-//     // Address
-//     address_line1: "",
-//     address_line2: "",
-//     city: "",
-//     state: "",
-//     pincode: "",
-//     country: "",
-    
-//     // Branches
-//     require_branches: "", // Yes/No
-//     number_of_branches: "",
-//   });
-
-//   // State for loading, error, and step management
-//   const [loading, setLoading] = useState(false);
-//   const [error, setError] = useState("");
-//   const [currentStep, setCurrentStep] = useState(1); // 1, 2, 3, or 4 (OTP verification)
-//   const [emailOtp, setEmailOtp] = useState("");
-//   const [phoneOtp, setPhoneOtp] = useState("");
-
-//   // State for loan products dropdown
-//   const [loanProductsDropdownOpen, setLoanProductsDropdownOpen] = useState(false);
-//   const dropdownRef = useRef(null);
-
-//   // Available loan products
-//   const loanProductsOptions = [
-//     "Working Capital",
-//     "Equipment Financing",
-//     "Line of Credit",
-//     "Merchant Cash Advance",
-//     "Term Loan",
-//     "Invoice Financing",
-//   ];
-
-//   // Close dropdown when clicking outside
-//   useEffect(() => {
-//     const handleClickOutside = (event) => {
-//       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-//         setLoanProductsDropdownOpen(false);
-//       }
-//     };
-
-//     document.addEventListener("mousedown", handleClickOutside);
-//     return () => {
-//       document.removeEventListener("mousedown", handleClickOutside);
-//     };
-//   }, []);
-
-//   // Generic handler for input changes
-//   const handleChange = (e) => {
-//     const { name, value } = e.target;
-//     let newValue = value;
-    
-//     // Normalize certain identifier fields
-//     if (name === "company_pan" || name === "owner_pan" || name === "gst_number") {
-//       newValue = value.toUpperCase();
-//     }
-
-//     setFormData((prevState) => ({
-//       ...prevState,
-//       [name]: newValue,
-//     }));
-    
-//     // Clear error when user types
-//     if (error) setError("");
-//   };
-
-//   // Handler for loan products multi-select
-//   const handleLoanProductToggle = (product) => {
-//     setFormData((prevState) => {
-//       const loanProducts = [...prevState.loan_products];
-//       const index = loanProducts.indexOf(product);
-
-//       if (index > -1) {
-//         loanProducts.splice(index, 1);
-//       } else {
-//         loanProducts.push(product);
-//       }
-
-//       return {
-//         ...prevState,
-//         loan_products: loanProducts,
-//       };
-//     });
-//   };
-
-//   // Toggle dropdown open/close
-//   const toggleLoanProductsDropdown = () => {
-//     setLoanProductsDropdownOpen(!loanProductsDropdownOpen);
-//   };
-
-//   // Validation functions
-//   const validateStep1 = () => {
-//     const errors = [];
-//     if (!formData.full_name || formData.full_name.trim() === "") {
-//       errors.push("Full name is required.");
-//     }
-//     if (!formData.email || formData.email.trim() === "") {
-//       errors.push("Email is required.");
-//     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-//       errors.push("Please enter a valid email address.");
-//     }
-//     if (!formData.phone_number || formData.phone_number.trim() === "") {
-//       errors.push("Phone number is required.");
-//     } else if (!/^\d{10}$|^\+\d{10,}$|^\+91\d{10}$/.test(formData.phone_number.replace(/\s+/g, ""))) {
-//       errors.push("Phone number must be 10 digits or include country code (e.g., +919876543210).");
-//     }
-//     return errors;
-//   };
-
-//   const validateStep2 = () => {
-//     const errors = [];
-//     if (!formData.password || formData.password.trim() === "") {
-//       errors.push("Password is required.");
-//     } else if (formData.password.length < 8) {
-//       errors.push("Password must be at least 8 characters long.");
-//     }
-//     if (!formData.confirm_password || formData.confirm_password.trim() === "") {
-//       errors.push("Please confirm your password.");
-//     }
-//     if (formData.password !== formData.confirm_password) {
-//       errors.push("Passwords do not match.");
-//     }
-//     return errors;
-//   };
-
-//   const validateStep3 = () => {
-//     const errors = [];
-//     const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]$/i;
-//     const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/i;
-
-//     if (!formData.company_name || formData.company_name.trim() === "") {
-//       errors.push("Company name is required.");
-//     }
-//     if (!formData.company_type || formData.company_type.trim() === "") {
-//       errors.push("Company type is required.");
-//     }
-//     if (!formData.organisation_type || formData.organisation_type.trim() === "") {
-//       errors.push("Organisation type is required.");
-//     }
-
-//     // PAN validation based on organisation type
-//     if (formData.organisation_type === "Proprietorship") {
-//       if (!formData.owner_pan || formData.owner_pan.trim() === "") {
-//         errors.push("Owner PAN is required for Proprietorship.");
-//       } else if (!panRegex.test(formData.owner_pan.toUpperCase())) {
-//         errors.push("Owner PAN format is invalid (expected: 5 letters, 4 digits, 1 letter).");
-//       }
-//     } else {
-//       if (!formData.company_pan || formData.company_pan.trim() === "") {
-//         errors.push("Company PAN is required.");
-//       } else if (!panRegex.test(formData.company_pan.toUpperCase())) {
-//         errors.push("Company PAN format is invalid (expected: 5 letters, 4 digits, 1 letter).");
-//       }
-//     }
-
-//     if (!formData.gst_number || formData.gst_number.trim() === "") {
-//       errors.push("GST Number is required.");
-//     } else if (!gstRegex.test(formData.gst_number.toUpperCase())) {
-//       errors.push("GST Number format is invalid (expected 15 characters, e.g., 27AAAAA0000A1Z5).");
-//     }
-
-//     if (!formData.number_of_users || formData.number_of_users.trim() === "") {
-//       errors.push("Number of users required is mandatory.");
-//     }
-//     if (!formData.current_aum || formData.current_aum.trim() === "") {
-//       errors.push("Current AUM is required.");
-//     }
-//     if (!formData.loan_products || formData.loan_products.length === 0) {
-//       errors.push("Please select at least one loan product.");
-//     }
-
-//     // Address validation
-//     if (!formData.address_line1 || formData.address_line1.trim() === "") {
-//       errors.push("Address Line 1 is required.");
-//     }
-//     if (!formData.city || formData.city.trim() === "") {
-//       errors.push("City is required.");
-//     }
-//     if (!formData.state || formData.state.trim() === "") {
-//       errors.push("State is required.");
-//     }
-//     if (!formData.pincode || formData.pincode.trim() === "") {
-//       errors.push("Pincode is required.");
-//     }
-//     if (!formData.country || formData.country.trim() === "") {
-//       errors.push("Country is required.");
-//     }
-
-//     // Branches validation
-//     if (!formData.require_branches || formData.require_branches.trim() === "") {
-//       errors.push("Please specify if you require branches.");
-//     }
-//     if (formData.require_branches === "Yes") {
-//       if (!formData.number_of_branches || formData.number_of_branches.trim() === "") {
-//         errors.push("Number of branches is required.");
-//       }
-//     }
-
-//     return errors;
-//   };
-
-//   const validateOtp = () => {
-//     const errors = [];
-//     if (!emailOtp || emailOtp.trim() === "") {
-//       errors.push("Email OTP is required.");
-//     }
-//     if (!phoneOtp || phoneOtp.trim() === "") {
-//       errors.push("Phone OTP is required.");
-//     }
-//     return errors;
-//   };
-
-//   // Handle Step 1 submission (move to step 2)
-//   const handleStep1Submit = (e) => {
-//     e.preventDefault();
-//     setError("");
-
-//     const validationErrors = validateStep1();
-//     if (validationErrors.length > 0) {
-//       setError(validationErrors.join(" "));
-//       return;
-//     }
-
-//     setCurrentStep(2);
-//   };
-
-//   // Handle Step 2 (Password) submission (move to step 3)
-//   const handleStep2Submit = (e) => {
-//     e.preventDefault();
-//     setError("");
-
-//     const validationErrors = validateStep2();
-//     if (validationErrors.length > 0) {
-//       setError(validationErrors.join(" "));
-//       return;
-//     }
-
-//     setCurrentStep(3);
-//   };
-
-//   // Handle Step 3 submission (validate and move to OTP step)
-//   const handleStep3Submit = (e) => {
-//     e.preventDefault();
-//     setError("");
-
-//     const validationErrors = validateStep3();
-//     if (validationErrors.length > 0) {
-//       setError(validationErrors.join(" "));
-//       return;
-//     }
-
-//     // Move to OTP verification step
-//     setCurrentStep(4);
-//   };
-
-//   // Handle sending OTP
-//   const handleSendOtp = async () => {
-//     setLoading(true);
-//     setError("");
-
-//     try {
-//       // Format phone number for backend
-//       let formattedPhone = formData.phone_number.replace(/\s+/g, "").replace(/[^+\d]/g, "");
-//       if (!formattedPhone.startsWith("+")) {
-//         formattedPhone = formattedPhone.length === 10 ? `+91${formattedPhone}` : `+${formattedPhone}`;
-//       }
-
-//       const payload = {
-//         email: formData.email,
-//         mobile_no: formattedPhone,
-//       };
-
-//       console.log("Sending OTP request with:", payload);
-
-//       const response = await fetch("http://localhost:8000/auth/send-otp/", {
-//         method: "POST",
-//         headers: {
-//           "Content-Type": "application/json",
-//         },
-//         body: JSON.stringify(payload),
-//       });
-
-//       const data = await response.json();
-
-//       if (!response.ok) {
-//         throw new Error(data.error || `Failed to send OTP (Status: ${response.status})`);
-//       }
-
-//       alert("OTP sent successfully to your email and phone!");
-//       console.log("OTP sent successfully");
-//     } catch (err) {
-//       console.error("Send OTP error:", err);
-//       setError(err.message || "Failed to send OTP. Please try again.");
-//     } finally {
-//       setLoading(false);
-//     }
-//   };
-
-//   // Handle OTP verification and final registration
-//   const handleFinalSubmit = async (e) => {
-//     e.preventDefault();
-//     setLoading(true);
-//     setError("");
-
-//     const validationErrors = validateOtp();
-//     if (validationErrors.length > 0) {
-//       setError(validationErrors.join(" "));
-//       setLoading(false);
-//       return;
-//     }
-
-//     try {
-//       // Format phone number
-//       let formattedPhone = formData.phone_number.replace(/\s+/g, "").replace(/[^+\d]/g, "");
-//       if (!formattedPhone.startsWith("+")) {
-//         formattedPhone = formattedPhone.length === 10 ? `+91${formattedPhone}` : `+${formattedPhone}`;
-//       }
-
-//       // Step 1: Verify OTP
-//       const verifyResponse = await fetch("http://localhost:8000/auth/verify-otp", {
-//         method: "POST",
-//         headers: { "Content-Type": "application/json" },
-//         body: JSON.stringify({
-//           mobile: formattedPhone,
-//           otp: phoneOtp,
-//         }),
-//       });
-
-//       const verifyData = await verifyResponse.json();
-
-//       if (!verifyResponse.ok) {
-//         throw new Error(verifyData.error || "Invalid OTP");
-//       }
-
-//       console.log("OTP verified successfully");
-
-//       // Step 2: Register user
-//       const payload = {
-//         contact_person: formData.full_name,
-//         email: formData.email,
-//         mobile_no: formattedPhone,
-//         business_name: formData.company_name,
-//         business_type: formData.organisation_type,
-//         business_pan: formData.organisation_type !== "Proprietorship" ? formData.company_pan : "",
-//         owner_pan: formData.organisation_type === "Proprietorship" ? formData.owner_pan : "",
-//         gst_number: formData.gst_number,
-//         password: formData.password,
-//         address_line1: formData.address_line1,
-//         address_line2: formData.address_line2,
-//         city: formData.city,
-//         state: formData.state,
-//         pincode: formData.pincode,
-//         country: formData.country,
-//         loan_product: formData.loan_products,
-//         status: "Active",
-//         // Additional fields
-//         company_type: formData.company_type,
-//         number_of_users: formData.number_of_users,
-//         current_aum: formData.current_aum,
-//         require_branches: formData.require_branches,
-//         number_of_branches: formData.require_branches === "Yes" ? formData.number_of_branches : "0",
-//       };
-
-//       console.log("Final registration payload:", payload);
-
-//       const registerResponse = await fetch("http://localhost:8000/auth/register", {
-//         method: "POST",
-//         headers: { "Content-Type": "application/json" },
-//         body: JSON.stringify(payload),
-//       });
-
-//       const registerData = await registerResponse.json();
-
-//       if (!registerResponse.ok) {
-//         throw new Error(registerData.error || "Registration failed");
-//       }
-
-//       // Registration successful
-//       alert("Registration successful! Redirecting to login...");
-//       setTimeout(() => navigate("/login"), 1500);
-//     } catch (err) {
-//       console.error("Registration error:", err);
-//       setError(err.message || "Registration failed. Please try again.");
-//     } finally {
-//       setLoading(false);
-//     }
-//   };
-
-//   // Handle resend OTP
-//   const handleResendOtp = async () => {
-//     await handleSendOtp();
-//   };
-
-//   return (
-//     <div style={{
-//       minHeight: "100vh",
-//       background: "linear-gradient(135deg, #f8fbff 0%, #e0e7ff 100%)",
-//       display: "flex",
-//       alignItems: "center",
-//       justifyContent: "center",
-//       padding: "2rem 1rem",
-//     }}>
-//       <div style={{
-//         maxWidth: "600px",
-//         width: "100%",
-//         background: "white",
-//         borderRadius: "20px",
-//         boxShadow: "0 20px 60px rgba(0, 0, 0, 0.3)",
-//         padding: "2.5rem",
-//       }}>
-//         {/* Header */}
-//         <div style={{ textAlign: "center", marginBottom: "2rem" }}>
-//           <div style={{
-//             width: "70px",
-//             height: "70px",
-//             background: "linear-gradient(135deg, #1d4ed8 0%, #3b82f6 100%)",
-//             borderRadius: "50%",
-//             display: "flex",
-//             alignItems: "center",
-//             justifyContent: "center",
-//             margin: "0 auto 1.5rem",
-//             boxShadow: "0 4px 15px rgba(29, 78, 216, 0.4)",
-//           }}>
-//             <i className="fas fa-user-plus" style={{ fontSize: "2rem", color: "white" }}></i>
-//           </div>
-//           <h1 style={{
-//             fontSize: "2rem",
-//             fontWeight: "700",
-//             background: "linear-gradient(135deg, #1d4ed8 0%, #3b82f6 100%)",
-//             WebkitBackgroundClip: "text",
-//             WebkitTextFillColor: "transparent",
-//             marginBottom: "0.5rem",
-//           }}>
-//             Create Your Account
-//           </h1>
-//           <p style={{ color: "#6b7280", fontSize: "0.95rem" }}>
-//             Register your organization to get started
-//           </p>
-//         </div>
-
-//         {/* Step Progress Indicator */}
-//         <div style={{ 
-//           display: "flex", 
-//           justifyContent: "space-between", 
-//           alignItems: "center", 
-//           margin: "2rem 0",
-//           position: "relative",
-//         }}>
-//           {/* Progress Line Background */}
-//           <div style={{
-//             position: "absolute",
-//             top: "16px",
-//             left: "0",
-//             right: "0",
-//             height: "3px",
-//             background: "#e5e7eb",
-//             zIndex: "0",
-//           }}></div>
-          
-//           {/* Active Progress Line */}
-//           <div style={{
-//             position: "absolute",
-//             top: "16px",
-//             left: "0",
-//             width: `${((currentStep - 1) / 3) * 100}%`,
-//             height: "3px",
-//             background: "linear-gradient(90deg, #1d4ed8 0%, #3b82f6 100%)",
-//             transition: "width 0.3s ease",
-//             zIndex: "1",
-//           }}></div>
-
-//           {[1, 2, 3, 4].map((step) => (
-//             <div key={step} style={{
-//               display: "flex",
-//               flexDirection: "column",
-//               alignItems: "center",
-//               zIndex: "2",
-//               position: "relative",
-//             }}>
-//               <div style={{
-//                 width: "36px",
-//                 height: "36px",
-//                 borderRadius: "50%",
-//                 background: currentStep >= step 
-//                   ? "linear-gradient(135deg, #1d4ed8 0%, #3b82f6 100%)" 
-//                   : "#e5e7eb",
-//                 color: currentStep >= step ? "white" : "#9ca3af",
-//                 display: "flex",
-//                 alignItems: "center",
-//                 justifyContent: "center",
-//                 fontWeight: "bold",
-//                 fontSize: "0.9rem",
-//                 boxShadow: currentStep >= step ? "0 4px 10px rgba(29, 78, 216, 0.3)" : "none",
-//                 transition: "all 0.3s ease",
-//               }}>
-//                 {step}
-//               </div>
-//               <span style={{ 
-//                 fontSize: "0.75rem", 
-//                 color: currentStep >= step ? "#1d4ed8" : "#9ca3af",
-//                 fontWeight: currentStep === step ? "600" : "normal",
-//                 marginTop: "0.5rem",
-//                 textAlign: "center",
-//               }}>
-//                 {step === 1 && "Contact"}
-//                 {step === 2 && "Password"}
-//                 {step === 3 && "Details"}
-//                 {step === 4 && "Verify"}
-//               </span>
-//             </div>
-//           ))}
-//         </div>
-
-//         {/* Error Message */}
-//         {error && (
-//           <div style={{
-//             background: "#fef2f2",
-//             border: "1px solid #fecaca",
-//             color: "#dc2626",
-//             padding: "1rem",
-//             borderRadius: "10px",
-//             marginBottom: "1.5rem",
-//             fontSize: "0.9rem",
-//             display: "flex",
-//             alignItems: "flex-start",
-//             gap: "0.5rem",
-//           }}>
-//             <i className="fas fa-exclamation-circle" style={{ marginTop: "2px" }}></i>
-//             <span>{error}</span>
-//           </div>
-//         )}
-
-//         {/* Step 1: Basic Contact Information */}
-//         {currentStep === 1 && (
-//           <form onSubmit={handleStep1Submit}>
-//             <div style={{ marginBottom: "1.5rem" }}>
-//               <h2 style={{
-//                 fontSize: "1.2rem",
-//                 fontWeight: "600",
-//                 marginBottom: "1.5rem",
-//                 color: "#1f2937",
-//                 display: "flex",
-//                 alignItems: "center",
-//                 gap: "0.5rem",
-//               }}>
-//                 <i className="fas fa-user" style={{ color: "#1d4ed8" }}></i>
-//                 Basic Contact Information
-//               </h2>
-              
-//               <div style={{ marginBottom: "1.25rem" }}>
-//                 <label style={{
-//                   display: "block",
-//                   fontWeight: "500",
-//                   marginBottom: "0.5rem",
-//                   color: "#374151",
-//                   fontSize: "0.9rem",
-//                 }}>
-//                   Full Name <span style={{ color: "#dc2626" }}>*</span>
-//                 </label>
-//                 <input
-//                   type="text"
-//                   name="full_name"
-//                   value={formData.full_name}
-//                   onChange={handleChange}
-//                   placeholder="Enter your full name"
-//                   required
-//                   style={{
-//                     width: "100%",
-//                     padding: "0.75rem 1rem",
-//                     border: "2px solid #e5e7eb",
-//                     borderRadius: "10px",
-//                     fontSize: "0.95rem",
-//                     transition: "all 0.2s ease",
-//                     outline: "none",
-//                     boxSizing: "border-box",
-//                   }}
-//                   onFocus={(e) => e.target.style.borderColor = "#3b82f6"}
-//                   onBlur={(e) => e.target.style.borderColor = "#e5e7eb"}
-//                 />
-//               </div>
-
-//               <div style={{ marginBottom: "1.25rem" }}>
-//                 <label style={{
-//                   display: "block",
-//                   fontWeight: "500",
-//                   marginBottom: "0.5rem",
-//                   color: "#374151",
-//                   fontSize: "0.9rem",
-//                 }}>
-//                   Email Address <span style={{ color: "#dc2626" }}>*</span>
-//                 </label>
-//                 <input
-//                   type="email"
-//                   name="email"
-//                   value={formData.email}
-//                   onChange={handleChange}
-//                   placeholder="your.email@company.com"
-//                   required
-//                   style={{
-//                     width: "100%",
-//                     padding: "0.75rem 1rem",
-//                     border: "2px solid #e5e7eb",
-//                     borderRadius: "10px",
-//                     fontSize: "0.95rem",
-//                     transition: "all 0.2s ease",
-//                     outline: "none",
-//                     boxSizing: "border-box",
-//                   }}
-//                   onFocus={(e) => e.target.style.borderColor = "#3b82f6"}
-//                   onBlur={(e) => e.target.style.borderColor = "#e5e7eb"}
-//                 />
-//               </div>
-
-//               <div style={{ marginBottom: "1.25rem" }}>
-//                 <label style={{
-//                   display: "block",
-//                   fontWeight: "500",
-//                   marginBottom: "0.5rem",
-//                   color: "#374151",
-//                   fontSize: "0.9rem",
-//                 }}>
-//                   Phone Number <span style={{ color: "#dc2626" }}>*</span>
-//                 </label>
-//                 <input
-//                   type="tel"
-//                   name="phone_number"
-//                   value={formData.phone_number}
-//                   onChange={handleChange}
-//                   placeholder="+91 9876543210"
-//                   required
-//                   style={{
-//                     width: "100%",
-//                     padding: "0.75rem 1rem",
-//                     border: "2px solid #e5e7eb",
-//                     borderRadius: "10px",
-//                     fontSize: "0.95rem",
-//                     transition: "all 0.2s ease",
-//                     outline: "none",
-//                     boxSizing: "border-box",
-//                   }}
-//                   onFocus={(e) => e.target.style.borderColor = "#3b82f6"}
-//                   onBlur={(e) => e.target.style.borderColor = "#e5e7eb"}
-//                 />
-//               </div>
-//             </div>
-
-//             <button 
-//               type="submit" 
-//               className="bg-blue-700 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition"
-//               style={{
-//                 width: "100%",
-//                 padding: "0.875rem",
-//                 background: "linear-gradient(135deg, #1d4ed8 0%, #3b82f6 100%)",
-//                 color: "white",
-//                 border: "none",
-//                 borderRadius: "10px",
-//                 fontSize: "1rem",
-//                 fontWeight: "600",
-//                 cursor: "pointer",
-//                 transition: "all 0.3s ease",
-//                 boxShadow: "0 4px 15px rgba(29, 78, 216, 0.3)",
-//               }}
-//               onMouseEnter={(e) => {
-//                 e.target.style.transform = "translateY(-2px)";
-//                 e.target.style.boxShadow = "0 6px 20px rgba(29, 78, 216, 0.4)";
-//               }}
-//               onMouseLeave={(e) => {
-//                 e.target.style.transform = "translateY(0)";
-//                 e.target.style.boxShadow = "0 4px 15px rgba(29, 78, 216, 0.3)";
-//               }}
-//             >
-//               Continue to Password
-//             </button>
-            
-//             <div style={{ textAlign: "center", marginTop: "1.5rem" }}>
-//               <p style={{ color: "#6b7280", fontSize: "0.9rem" }}>
-//                 Already have an account?{" "}
-//                 <Link to="/login" style={{ 
-//                   color: "#1d4ed8", 
-//                   fontWeight: "600",
-//                   textDecoration: "none",
-//                 }}>
-//                   Sign In
-//                 </Link>
-//               </p>
-//             </div>
-//           </form>
-//         )}
-
-//         {/* Step 2: Create Password */}
-//         {currentStep === 2 && (
-//           <form onSubmit={handleStep2Submit}>
-//             <div style={{ marginBottom: "1.5rem" }}>
-//               <h2 style={{
-//                 fontSize: "1.2rem",
-//                 fontWeight: "600",
-//                 marginBottom: "1.5rem",
-//                 color: "#1f2937",
-//                 display: "flex",
-//                 alignItems: "center",
-//                 gap: "0.5rem",
-//               }}>
-//                 <i className="fas fa-lock" style={{ color: "#1d4ed8" }}></i>
-//                 Create Password
-//               </h2>
-
-//               <div style={{ marginBottom: "1.25rem" }}>
-//                 <label style={{
-//                   display: "block",
-//                   fontWeight: "500",
-//                   marginBottom: "0.5rem",
-//                   color: "#374151",
-//                   fontSize: "0.9rem",
-//                 }}>
-//                   Password <span style={{ color: "#dc2626" }}>*</span>
-//                 </label>
-//                 <input
-//                   type="password"
-//                   name="password"
-//                   value={formData.password}
-//                   onChange={handleChange}
-//                   placeholder="Enter a strong password (min. 8 characters)"
-//                   required
-//                   style={{
-//                     width: "100%",
-//                     padding: "0.75rem 1rem",
-//                     border: "2px solid #e5e7eb",
-//                     borderRadius: "10px",
-//                     fontSize: "0.95rem",
-//                     transition: "all 0.2s ease",
-//                     outline: "none",
-//                     boxSizing: "border-box",
-//                   }}
-//                   onFocus={(e) => e.target.style.borderColor = "#3b82f6"}
-//                   onBlur={(e) => e.target.style.borderColor = "#e5e7eb"}
-//                 />
-//               </div>
-
-//               <div style={{ marginBottom: "1.25rem" }}>
-//                 <label style={{
-//                   display: "block",
-//                   fontWeight: "500",
-//                   marginBottom: "0.5rem",
-//                   color: "#374151",
-//                   fontSize: "0.9rem",
-//                 }}>
-//                   Confirm Password <span style={{ color: "#dc2626" }}>*</span>
-//                 </label>
-//                 <input
-//                   type="password"
-//                   name="confirm_password"
-//                   value={formData.confirm_password}
-//                   onChange={handleChange}
-//                   placeholder="Re-enter your password"
-//                   required
-//                   style={{
-//                     width: "100%",
-//                     padding: "0.75rem 1rem",
-//                     border: "2px solid #e5e7eb",
-//                     borderRadius: "10px",
-//                     fontSize: "0.95rem",
-//                     transition: "all 0.2s ease",
-//                     outline: "none",
-//                     boxSizing: "border-box",
-//                   }}
-//                   onFocus={(e) => e.target.style.borderColor = "#3b82f6"}
-//                   onBlur={(e) => e.target.style.borderColor = "#e5e7eb"}
-//                 />
-//               </div>
-//             </div>
-
-//             <div style={{ display: "flex", gap: "1rem" }}>
-//               <button
-//                 type="button"
-//                 onClick={() => setCurrentStep(1)}
-//                 style={{
-//                   flex: 1,
-//                   padding: "0.875rem",
-//                   border: "2px solid #e5e7eb",
-//                   borderRadius: "10px",
-//                   background: "white",
-//                   color: "#6b7280",
-//                   fontSize: "1rem",
-//                   fontWeight: "600",
-//                   cursor: "pointer",
-//                   transition: "all 0.2s ease",
-//                 }}
-//                 onMouseEnter={(e) => {
-//                   e.target.style.borderColor = "#d1d5db";
-//                   e.target.style.background = "#f9fafb";
-//                 }}
-//                 onMouseLeave={(e) => {
-//                   e.target.style.borderColor = "#e5e7eb";
-//                   e.target.style.background = "white";
-//                 }}
-//               >
-//                 Back
-//               </button>
-//               <button 
-//                 type="submit"
-//                 style={{
-//                   flex: 1,
-//                   padding: "0.875rem",
-//                   background: "linear-gradient(135deg, #1d4ed8 0%, #3b82f6 100%)",
-//                   color: "white",
-//                   border: "none",
-//                   borderRadius: "10px",
-//                   fontSize: "1rem",
-//                   fontWeight: "600",
-//                   cursor: "pointer",
-//                   transition: "all 0.3s ease",
-//                   boxShadow: "0 4px 15px rgba(29, 78, 216, 0.3)",
-//                 }}
-//                 onMouseEnter={(e) => {
-//                   e.target.style.transform = "translateY(-2px)";
-//                   e.target.style.boxShadow = "0 6px 20px rgba(29, 78, 216, 0.4)";
-//                 }}
-//                 onMouseLeave={(e) => {
-//                   e.target.style.transform = "translateY(0)";
-//                   e.target.style.boxShadow = "0 4px 15px rgba(29, 78, 216, 0.3)";
-//                 }}
-//               >
-//                 Continue to Company Details
-//               </button>
-//             </div>
-//           </form>
-//         )}
-
-//         {/* Step 3: Company and Business Details */}
-//         {currentStep === 3 && (
-//           <form onSubmit={handleStep3Submit} style={{ maxHeight: "500px", overflowY: "auto", paddingRight: "10px" }}>
-//             <div style={{ marginBottom: "1.5rem" }}>
-//               <h2 style={{
-//                 fontSize: "1.2rem",
-//                 fontWeight: "600",
-//                 marginBottom: "1.5rem",
-//                 color: "#1f2937",
-//                 display: "flex",
-//                 alignItems: "center",
-//                 gap: "0.5rem",
-//               }}>
-//                 <i className="fas fa-building" style={{ color: "#1d4ed8" }}></i>
-//                 Company Details
-//               </h2>
-
-//               <div style={{ marginBottom: "1.25rem" }}>
-//                 <label style={{
-//                   display: "block",
-//                   fontWeight: "500",
-//                   marginBottom: "0.5rem",
-//                   color: "#374151",
-//                   fontSize: "0.9rem",
-//                 }}>
-//                   Company Name <span style={{ color: "#dc2626" }}>*</span>
-//                 </label>
-//                 <input
-//                   type="text"
-//                   name="company_name"
-//                   value={formData.company_name}
-//                   onChange={handleChange}
-//                   placeholder="Enter your company name"
-//                   required
-//                   style={{
-//                     width: "100%",
-//                     padding: "0.75rem 1rem",
-//                     border: "2px solid #e5e7eb",
-//                     borderRadius: "10px",
-//                     fontSize: "0.95rem",
-//                     transition: "all 0.2s ease",
-//                     outline: "none",
-//                     boxSizing: "border-box",
-//                   }}
-//                   onFocus={(e) => e.target.style.borderColor = "#3b82f6"}
-//                   onBlur={(e) => e.target.style.borderColor = "#e5e7eb"}
-//                 />
-//               </div>
-
-//               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1.25rem" }}>
-//                 <div>
-//                   <label style={{
-//                     display: "block",
-//                     fontWeight: "500",
-//                     marginBottom: "0.5rem",
-//                     color: "#374151",
-//                     fontSize: "0.9rem",
-//                   }}>
-//                     Company Type <span style={{ color: "#dc2626" }}>*</span>
-//                   </label>
-//                   <select
-//                     name="company_type"
-//                     value={formData.company_type}
-//                     onChange={handleChange}
-//                     required
-//                     style={{
-//                       width: "100%",
-//                       padding: "0.75rem 1rem",
-//                       border: "2px solid #e5e7eb",
-//                       borderRadius: "10px",
-//                       fontSize: "0.95rem",
-//                       transition: "all 0.2s ease",
-//                       outline: "none",
-//                       boxSizing: "border-box",
-//                       background: "white",
-//                     }}
-//                     onFocus={(e) => e.target.style.borderColor = "#3b82f6"}
-//                     onBlur={(e) => e.target.style.borderColor = "#e5e7eb"}
-//                   >
-//                     <option value="">Select Type</option>
-//                     <option value="NBFC">NBFC</option>
-//                     <option value="Bank">Bank</option>
-//                     <option value="Fintech">Fintech</option>
-//                     <option value="Other">Other</option>
-//                   </select>
-//                 </div>
-
-//                 <div>
-//                   <label style={{
-//                     display: "block",
-//                     fontWeight: "500",
-//                     marginBottom: "0.5rem",
-//                     color: "#374151",
-//                     fontSize: "0.9rem",
-//                   }}>
-//                     Organisation Type <span style={{ color: "#dc2626" }}>*</span>
-//                   </label>
-//                   <select
-//                     name="organisation_type"
-//                     value={formData.organisation_type}
-//                     onChange={handleChange}
-//                     required
-//                     style={{
-//                       width: "100%",
-//                       padding: "0.75rem 1rem",
-//                       border: "2px solid #e5e7eb",
-//                       borderRadius: "10px",
-//                       fontSize: "0.95rem",
-//                       transition: "all 0.2s ease",
-//                       outline: "none",
-//                       boxSizing: "border-box",
-//                       background: "white",
-//                     }}
-//                     onFocus={(e) => e.target.style.borderColor = "#3b82f6"}
-//                     onBlur={(e) => e.target.style.borderColor = "#e5e7eb"}
-//                   >
-//                     <option value="">Select Type</option>
-//                     <option value="Private Limited">Private Limited</option>
-//                     <option value="LLP">LLP</option>
-//                     <option value="Proprietorship">Proprietorship</option>
-//                     <option value="Partnership">Partnership</option>
-//                   </select>
-//                 </div>
-//               </div>
-
-//               {formData.organisation_type === "Proprietorship" ? (
-//                 <div style={{ marginBottom: "1.25rem" }}>
-//                   <label style={{
-//                     display: "block",
-//                     fontWeight: "500",
-//                     marginBottom: "0.5rem",
-//                     color: "#374151",
-//                     fontSize: "0.9rem",
-//                   }}>
-//                     Owner PAN <span style={{ color: "#dc2626" }}>*</span>
-//                   </label>
-//                   <input
-//                     type="text"
-//                     name="owner_pan"
-//                     value={formData.owner_pan}
-//                     onChange={handleChange}
-//                     placeholder="ABCDE1234F"
-//                     maxLength={10}
-//                     required
-//                     style={{
-//                       width: "100%",
-//                       padding: "0.75rem 1rem",
-//                       border: "2px solid #e5e7eb",
-//                       borderRadius: "10px",
-//                       fontSize: "0.95rem",
-//                       transition: "all 0.2s ease",
-//                       outline: "none",
-//                       boxSizing: "border-box",
-//                     }}
-//                     onFocus={(e) => e.target.style.borderColor = "#3b82f6"}
-//                     onBlur={(e) => e.target.style.borderColor = "#e5e7eb"}
-//                   />
-//                 </div>
-//               ) : (
-//                 <div style={{ marginBottom: "1.25rem" }}>
-//                   <label style={{
-//                     display: "block",
-//                     fontWeight: "500",
-//                     marginBottom: "0.5rem",
-//                     color: "#374151",
-//                     fontSize: "0.9rem",
-//                   }}>
-//                     Company PAN <span style={{ color: "#dc2626" }}>*</span>
-//                   </label>
-//                   <input
-//                     type="text"
-//                     name="company_pan"
-//                     value={formData.company_pan}
-//                     onChange={handleChange}
-//                     placeholder="ABCDE1234F"
-//                     maxLength={10}
-//                     required
-//                     style={{
-//                       width: "100%",
-//                       padding: "0.75rem 1rem",
-//                       border: "2px solid #e5e7eb",
-//                       borderRadius: "10px",
-//                       fontSize: "0.95rem",
-//                       transition: "all 0.2s ease",
-//                       outline: "none",
-//                       boxSizing: "border-box",
-//                     }}
-//                     onFocus={(e) => e.target.style.borderColor = "#3b82f6"}
-//                     onBlur={(e) => e.target.style.borderColor = "#e5e7eb"}
-//                   />
-//                 </div>
-//               )}
-
-//               <div style={{ marginBottom: "1.25rem" }}>
-//                 <label style={{
-//                   display: "block",
-//                   fontWeight: "500",
-//                   marginBottom: "0.5rem",
-//                   color: "#374151",
-//                   fontSize: "0.9rem",
-//                 }}>
-//                   GST Number <span style={{ color: "#dc2626" }}>*</span>
-//                 </label>
-//                 <input
-//                   type="text"
-//                   name="gst_number"
-//                   value={formData.gst_number}
-//                   onChange={handleChange}
-//                   placeholder="27AAAAA0000A1Z5"
-//                   maxLength={15}
-//                   required
-//                   style={{
-//                     width: "100%",
-//                     padding: "0.75rem 1rem",
-//                     border: "2px solid #e5e7eb",
-//                     borderRadius: "10px",
-//                     fontSize: "0.95rem",
-//                     transition: "all 0.2s ease",
-//                     outline: "none",
-//                     boxSizing: "border-box",
-//                   }}
-//                   onFocus={(e) => e.target.style.borderColor = "#3b82f6"}
-//                   onBlur={(e) => e.target.style.borderColor = "#e5e7eb"}
-//                 />
-//               </div>
-
-//               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1.25rem" }}>
-//                 <div>
-//                   <label style={{
-//                     display: "block",
-//                     fontWeight: "500",
-//                     marginBottom: "0.5rem",
-//                     color: "#374151",
-//                     fontSize: "0.9rem",
-//                   }}>
-//                     Number of Users <span style={{ color: "#dc2626" }}>*</span>
-//                   </label>
-//                   <input
-//                     type="number"
-//                     name="number_of_users"
-//                     value={formData.number_of_users}
-//                     onChange={handleChange}
-//                     placeholder="e.g., 10"
-//                     min="1"
-//                     required
-//                     style={{
-//                       width: "100%",
-//                       padding: "0.75rem 1rem",
-//                       border: "2px solid #e5e7eb",
-//                       borderRadius: "10px",
-//                       fontSize: "0.95rem",
-//                       transition: "all 0.2s ease",
-//                       outline: "none",
-//                       boxSizing: "border-box",
-//                     }}
-//                     onFocus={(e) => e.target.style.borderColor = "#3b82f6"}
-//                     onBlur={(e) => e.target.style.borderColor = "#e5e7eb"}
-//                   />
-//                 </div>
-
-//                 <div>
-//                   <label style={{
-//                     display: "block",
-//                     fontWeight: "500",
-//                     marginBottom: "0.5rem",
-//                     color: "#374151",
-//                     fontSize: "0.9rem",
-//                   }}>
-//                     Current AUM <span style={{ color: "#dc2626" }}>*</span>
-//                   </label>
-//                   <input
-//                     type="text"
-//                     name="current_aum"
-//                     value={formData.current_aum}
-//                     onChange={handleChange}
-//                     placeholder="e.g., 50 Crores"
-//                     required
-//                     style={{
-//                       width: "100%",
-//                       padding: "0.75rem 1rem",
-//                       border: "2px solid #e5e7eb",
-//                       borderRadius: "10px",
-//                       fontSize: "0.95rem",
-//                       transition: "all 0.2s ease",
-//                       outline: "none",
-//                       boxSizing: "border-box",
-//                     }}
-//                     onFocus={(e) => e.target.style.borderColor = "#3b82f6"}
-//                     onBlur={(e) => e.target.style.borderColor = "#e5e7eb"}
-//                   />
-//                 </div>
-//               </div>
-
-//               <div style={{ marginBottom: "1.25rem" }} ref={dropdownRef}>
-//                 <label style={{
-//                   display: "block",
-//                   fontWeight: "500",
-//                   marginBottom: "0.5rem",
-//                   color: "#374151",
-//                   fontSize: "0.9rem",
-//                 }}>
-//                   Loan Products <span style={{ color: "#dc2626" }}>*</span>
-//                 </label>
-//                 <div style={{ position: "relative" }}>
-//                   <div
-//                     onClick={toggleLoanProductsDropdown}
-//                     style={{
-//                       width: "100%",
-//                       padding: "0.75rem 1rem",
-//                       border: "2px solid #e5e7eb",
-//                       borderRadius: "10px",
-//                       fontSize: "0.95rem",
-//                       cursor: "pointer",
-//                       display: "flex",
-//                       alignItems: "center",
-//                       flexWrap: "wrap",
-//                       gap: "0.5rem",
-//                       minHeight: "48px",
-//                       boxSizing: "border-box",
-//                       background: "white",
-//                     }}
-//                   >
-//                     {formData.loan_products.length > 0 ? (
-//                       formData.loan_products.map((product, index) => (
-//                         <span key={index} style={{
-//                           background: "linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)",
-//                           color: "#1d4ed8",
-//                           borderRadius: "20px",
-//                           padding: "0.25rem 0.75rem",
-//                           fontSize: "0.85rem",
-//                           fontWeight: "500",
-//                           display: "flex",
-//                           alignItems: "center",
-//                           gap: "0.5rem",
-//                         }}>
-//                           {product}
-//                           <i
-//                             className="fas fa-times"
-//                             style={{ cursor: "pointer", fontSize: "0.75rem" }}
-//                             onClick={(e) => {
-//                               e.stopPropagation();
-//                               handleLoanProductToggle(product);
-//                             }}
-//                           ></i>
-//                         </span>
-//                       ))
-//                     ) : (
-//                       <span style={{ color: "#9ca3af" }}>Select loan products...</span>
-//                     )}
-//                     <i
-//                       className={`fas fa-chevron-${loanProductsDropdownOpen ? "up" : "down"}`}
-//                       style={{
-//                         position: "absolute",
-//                         right: "1rem",
-//                         color: "#6b7280",
-//                         pointerEvents: "none",
-//                       }}
-//                     ></i>
-//                   </div>
-//                   {loanProductsDropdownOpen && (
-//                     <div style={{
-//                       position: "absolute",
-//                       top: "100%",
-//                       left: "0",
-//                       right: "0",
-//                       background: "white",
-//                       border: "2px solid #e5e7eb",
-//                       borderRadius: "10px",
-//                       maxHeight: "200px",
-//                       overflowY: "auto",
-//                       zIndex: "10",
-//                       boxShadow: "0 10px 25px rgba(0, 0, 0, 0.1)",
-//                       marginTop: "0.5rem",
-//                     }}>
-//                       {loanProductsOptions.map((product, index) => (
-//                         <div
-//                           key={index}
-//                           onClick={() => handleLoanProductToggle(product)}
-//                           style={{
-//                             padding: "0.75rem 1rem",
-//                             cursor: "pointer",
-//                             display: "flex",
-//                             justifyContent: "space-between",
-//                             alignItems: "center",
-//                             background: formData.loan_products.includes(product) 
-//                               ? "linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)" 
-//                               : "white",
-//                             color: formData.loan_products.includes(product) ? "#1d4ed8" : "#374151",
-//                             fontWeight: formData.loan_products.includes(product) ? "500" : "normal",
-//                             transition: "all 0.2s ease",
-//                           }}
-//                           onMouseEnter={(e) => {
-//                             if (!formData.loan_products.includes(product)) {
-//                               e.target.style.background = "#f9fafb";
-//                             }
-//                           }}
-//                           onMouseLeave={(e) => {
-//                             if (!formData.loan_products.includes(product)) {
-//                               e.target.style.background = "white";
-//                             }
-//                           }}
-//                         >
-//                           {product}
-//                           {formData.loan_products.includes(product) && (
-//                             <i className="fas fa-check"></i>
-//                           )}
-//                         </div>
-//                       ))}
-//                     </div>
-//                   )}
-//                 </div>
-//               </div>
-
-//               {/* Address Section */}
-//               <h3 style={{
-//                 fontSize: "1.1rem",
-//                 fontWeight: "600",
-//                 marginTop: "2rem",
-//                 marginBottom: "1rem",
-//                 color: "#1f2937",
-//                 display: "flex",
-//                 alignItems: "center",
-//                 gap: "0.5rem",
-//               }}>
-//                 <i className="fas fa-map-marker-alt" style={{ color: "#1d4ed8" }}></i>
-//                 Business Address
-//               </h3>
-
-//               <div style={{ marginBottom: "1.25rem" }}>
-//                 <label style={{
-//                   display: "block",
-//                   fontWeight: "500",
-//                   marginBottom: "0.5rem",
-//                   color: "#374151",
-//                   fontSize: "0.9rem",
-//                 }}>
-//                   Address Line 1 <span style={{ color: "#dc2626" }}>*</span>
-//                 </label>
-//                 <input
-//                   type="text"
-//                   name="address_line1"
-//                   value={formData.address_line1}
-//                   onChange={handleChange}
-//                   placeholder="Street address"
-//                   required
-//                   style={{
-//                     width: "100%",
-//                     padding: "0.75rem 1rem",
-//                     border: "2px solid #e5e7eb",
-//                     borderRadius: "10px",
-//                     fontSize: "0.95rem",
-//                     transition: "all 0.2s ease",
-//                     outline: "none",
-//                     boxSizing: "border-box",
-//                   }}
-//                   onFocus={(e) => e.target.style.borderColor = "#3b82f6"}
-//                   onBlur={(e) => e.target.style.borderColor = "#e5e7eb"}
-//                 />
-//               </div>
-
-//               <div style={{ marginBottom: "1.25rem" }}>
-//                 <label style={{
-//                   display: "block",
-//                   fontWeight: "500",
-//                   marginBottom: "0.5rem",
-//                   color: "#374151",
-//                   fontSize: "0.9rem",
-//                 }}>
-//                   Address Line 2
-//                 </label>
-//                 <input
-//                   type="text"
-//                   name="address_line2"
-//                   value={formData.address_line2}
-//                   onChange={handleChange}
-//                   placeholder="Apartment, suite, etc. (optional)"
-//                   style={{
-//                     width: "100%",
-//                     padding: "0.75rem 1rem",
-//                     border: "2px solid #e5e7eb",
-//                     borderRadius: "10px",
-//                     fontSize: "0.95rem",
-//                     transition: "all 0.2s ease",
-//                     outline: "none",
-//                     boxSizing: "border-box",
-//                   }}
-//                   onFocus={(e) => e.target.style.borderColor = "#3b82f6"}
-//                   onBlur={(e) => e.target.style.borderColor = "#e5e7eb"}
-//                 />
-//               </div>
-
-//               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1.25rem" }}>
-//                 <div>
-//                   <label style={{
-//                     display: "block",
-//                     fontWeight: "500",
-//                     marginBottom: "0.5rem",
-//                     color: "#374151",
-//                     fontSize: "0.9rem",
-//                   }}>
-//                     City <span style={{ color: "#dc2626" }}>*</span>
-//                   </label>
-//                   <input
-//                     type="text"
-//                     name="city"
-//                     value={formData.city}
-//                     onChange={handleChange}
-//                     placeholder="City"
-//                     required
-//                     style={{
-//                       width: "100%",
-//                       padding: "0.75rem 1rem",
-//                       border: "2px solid #e5e7eb",
-//                       borderRadius: "10px",
-//                       fontSize: "0.95rem",
-//                       transition: "all 0.2s ease",
-//                       outline: "none",
-//                       boxSizing: "border-box",
-//                     }}
-//                     onFocus={(e) => e.target.style.borderColor = "#3b82f6"}
-//                     onBlur={(e) => e.target.style.borderColor = "#e5e7eb"}
-//                   />
-//                 </div>
-
-//                 <div>
-//                   <label style={{
-//                     display: "block",
-//                     fontWeight: "500",
-//                     marginBottom: "0.5rem",
-//                     color: "#374151",
-//                     fontSize: "0.9rem",
-//                   }}>
-//                     State <span style={{ color: "#dc2626" }}>*</span>
-//                   </label>
-//                   <input
-//                     type="text"
-//                     name="state"
-//                     value={formData.state}
-//                     onChange={handleChange}
-//                     placeholder="State"
-//                     required
-//                     style={{
-//                       width: "100%",
-//                       padding: "0.75rem 1rem",
-//                       border: "2px solid #e5e7eb",
-//                       borderRadius: "10px",
-//                       fontSize: "0.95rem",
-//                       transition: "all 0.2s ease",
-//                       outline: "none",
-//                       boxSizing: "border-box",
-//                     }}
-//                     onFocus={(e) => e.target.style.borderColor = "#3b82f6"}
-//                     onBlur={(e) => e.target.style.borderColor = "#e5e7eb"}
-//                   />
-//                 </div>
-//               </div>
-
-//               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1.25rem" }}>
-//                 <div>
-//                   <label style={{
-//                     display: "block",
-//                     fontWeight: "500",
-//                     marginBottom: "0.5rem",
-//                     color: "#374151",
-//                     fontSize: "0.9rem",
-//                   }}>
-//                     Pincode <span style={{ color: "#dc2626" }}>*</span>
-//                   </label>
-//                   <input
-//                     type="text"
-//                     name="pincode"
-//                     value={formData.pincode}
-//                     onChange={handleChange}
-//                     placeholder="Postal code"
-//                     required
-//                     style={{
-//                       width: "100%",
-//                       padding: "0.75rem 1rem",
-//                       border: "2px solid #e5e7eb",
-//                       borderRadius: "10px",
-//                       fontSize: "0.95rem",
-//                       transition: "all 0.2s ease",
-//                       outline: "none",
-//                       boxSizing: "border-box",
-//                     }}
-//                     onFocus={(e) => e.target.style.borderColor = "#3b82f6"}
-//                     onBlur={(e) => e.target.style.borderColor = "#e5e7eb"}
-//                   />
-//                 </div>
-
-//                 <div>
-//                   <label style={{
-//                     display: "block",
-//                     fontWeight: "500",
-//                     marginBottom: "0.5rem",
-//                     color: "#374151",
-//                     fontSize: "0.9rem",
-//                   }}>
-//                     Country <span style={{ color: "#dc2626" }}>*</span>
-//                   </label>
-//                   <input
-//                     type="text"
-//                     name="country"
-//                     value={formData.country}
-//                     onChange={handleChange}
-//                     placeholder="Country"
-//                     required
-//                     style={{
-//                       width: "100%",
-//                       padding: "0.75rem 1rem",
-//                       border: "2px solid #e5e7eb",
-//                       borderRadius: "10px",
-//                       fontSize: "0.95rem",
-//                       transition: "all 0.2s ease",
-//                       outline: "none",
-//                       boxSizing: "border-box",
-//                     }}
-//                     onFocus={(e) => e.target.style.borderColor = "#3b82f6"}
-//                     onBlur={(e) => e.target.style.borderColor = "#e5e7eb"}
-//                   />
-//                 </div>
-//               </div>
-
-//               {/* Branch Requirements */}
-//               <h3 style={{
-//                 fontSize: "1.1rem",
-//                 fontWeight: "600",
-//                 marginTop: "2rem",
-//                 marginBottom: "1rem",
-//                 color: "#1f2937",
-//                 display: "flex",
-//                 alignItems: "center",
-//                 gap: "0.5rem",
-//               }}>
-//                 <i className="fas fa-code-branch" style={{ color: "#1d4ed8" }}></i>
-//                 Branch Requirements
-//               </h3>
-
-//               <div style={{ marginBottom: "1.25rem" }}>
-//                 <label style={{
-//                   display: "block",
-//                   fontWeight: "500",
-//                   marginBottom: "0.5rem",
-//                   color: "#374151",
-//                   fontSize: "0.9rem",
-//                 }}>
-//                   Do you require branches? <span style={{ color: "#dc2626" }}>*</span>
-//                 </label>
-//                 <select
-//                   name="require_branches"
-//                   value={formData.require_branches}
-//                   onChange={handleChange}
-//                   required
-//                   style={{
-//                     width: "100%",
-//                     padding: "0.75rem 1rem",
-//                     border: "2px solid #e5e7eb",
-//                     borderRadius: "10px",
-//                     fontSize: "0.95rem",
-//                     transition: "all 0.2s ease",
-//                     outline: "none",
-//                     boxSizing: "border-box",
-//                     background: "white",
-//                   }}
-//                   onFocus={(e) => e.target.style.borderColor = "#3b82f6"}
-//                   onBlur={(e) => e.target.style.borderColor = "#e5e7eb"}
-//                 >
-//                   <option value="">Select...</option>
-//                   <option value="Yes">Yes</option>
-//                   <option value="No">No</option>
-//                 </select>
-//               </div>
-
-//               {formData.require_branches === "Yes" && (
-//                 <div style={{ marginBottom: "1.25rem" }}>
-//                   <label style={{
-//                     display: "block",
-//                     fontWeight: "500",
-//                     marginBottom: "0.5rem",
-//                     color: "#374151",
-//                     fontSize: "0.9rem",
-//                   }}>
-//                     Number of Branches <span style={{ color: "#dc2626" }}>*</span>
-//                   </label>
-//                   <input
-//                     type="number"
-//                     name="number_of_branches"
-//                     value={formData.number_of_branches}
-//                     onChange={handleChange}
-//                     placeholder="e.g., 5"
-//                     min="1"
-//                     required
-//                     style={{
-//                       width: "100%",
-//                       padding: "0.75rem 1rem",
-//                       border: "2px solid #e5e7eb",
-//                       borderRadius: "10px",
-//                       fontSize: "0.95rem",
-//                       transition: "all 0.2s ease",
-//                       outline: "none",
-//                       boxSizing: "border-box",
-//                     }}
-//                     onFocus={(e) => e.target.style.borderColor = "#3b82f6"}
-//                     onBlur={(e) => e.target.style.borderColor = "#e5e7eb"}
-//                   />
-//                 </div>
-//               )}
-//             </div>
-
-//             <div style={{ display: "flex", gap: "1rem", position: "sticky", bottom: 0, background: "white", paddingTop: "1rem" }}>
-//               <button
-//                 type="button"
-//                 onClick={() => setCurrentStep(2)}
-//                 style={{
-//                   flex: 1,
-//                   padding: "0.875rem",
-//                   border: "2px solid #e5e7eb",
-//                   borderRadius: "10px",
-//                   background: "white",
-//                   color: "#6b7280",
-//                   fontSize: "1rem",
-//                   fontWeight: "600",
-//                   cursor: "pointer",
-//                   transition: "all 0.2s ease",
-//                 }}
-//                 onMouseEnter={(e) => {
-//                   e.target.style.borderColor = "#d1d5db";
-//                   e.target.style.background = "#f9fafb";
-//                 }}
-//                 onMouseLeave={(e) => {
-//                   e.target.style.borderColor = "#e5e7eb";
-//                   e.target.style.background = "white";
-//                 }}
-//               >
-//                 Back
-//               </button>
-//               <button 
-//                 type="submit"
-//                 style={{
-//                   flex: 1,
-//                   padding: "0.875rem",
-//                   background: "linear-gradient(135deg, #1d4ed8 0%, #3b82f6 100%)",
-//                   color: "white",
-//                   border: "none",
-//                   borderRadius: "10px",
-//                   fontSize: "1rem",
-//                   fontWeight: "600",
-//                   cursor: "pointer",
-//                   transition: "all 0.3s ease",
-//                   boxShadow: "0 4px 15px rgba(29, 78, 216, 0.3)",
-//                 }}
-//                 onMouseEnter={(e) => {
-//                   e.target.style.transform = "translateY(-2px)";
-//                   e.target.style.boxShadow = "0 6px 20px rgba(29, 78, 216, 0.4)";
-//                 }}
-//                 onMouseLeave={(e) => {
-//                   e.target.style.transform = "translateY(0)";
-//                   e.target.style.boxShadow = "0 4px 15px rgba(29, 78, 216, 0.3)";
-//                 }}
-//               >
-//                 Continue to Verification
-//               </button>
-//             </div>
-//           </form>
-//         )}
-
-//         {/* Step 4: OTP Verification */}
-//         {currentStep === 4 && (
-//           <form onSubmit={handleFinalSubmit}>
-//             <div style={{ marginBottom: "1.5rem" }}>
-//               <h2 style={{
-//                 fontSize: "1.2rem",
-//                 fontWeight: "600",
-//                 marginBottom: "1rem",
-//                 color: "#1f2937",
-//                 display: "flex",
-//                 alignItems: "center",
-//                 gap: "0.5rem",
-//               }}>
-//                 <i className="fas fa-shield-alt" style={{ color: "#1d4ed8" }}></i>
-//                 Verify Your Contact
-//               </h2>
-//               <p style={{ 
-//                 color: "#6b7280", 
-//                 marginBottom: "1.5rem",
-//                 fontSize: "0.95rem",
-//                 lineHeight: "1.6",
-//               }}>
-//                 Click "Send OTP" to receive verification codes on your email and phone number.
-//               </p>
-
-//               <button
-//                 type="button"
-//                 onClick={handleSendOtp}
-//                 disabled={loading}
-//                 style={{
-//                   width: "100%",
-//                   padding: "0.875rem",
-//                   border: "2px solid #1d4ed8",
-//                   borderRadius: "10px",
-//                   background: "white",
-//                   color: "#1d4ed8",
-//                   fontSize: "1rem",
-//                   fontWeight: "600",
-//                   cursor: loading ? "not-allowed" : "pointer",
-//                   marginBottom: "1.5rem",
-//                   transition: "all 0.2s ease",
-//                   opacity: loading ? 0.6 : 1,
-//                 }}
-//                 onMouseEnter={(e) => {
-//                   if (!loading) {
-//                     e.target.style.background = "#eff6ff";
-//                   }
-//                 }}
-//                 onMouseLeave={(e) => {
-//                   e.target.style.background = "white";
-//                 }}
-//               >
-//                 {loading ? "Sending OTP..." : "Send OTP"}
-//               </button>
-
-//               <div style={{ marginBottom: "1.25rem" }}>
-//                 <label style={{
-//                   display: "block",
-//                   fontWeight: "500",
-//                   marginBottom: "0.5rem",
-//                   color: "#374151",
-//                   fontSize: "0.9rem",
-//                 }}>
-//                   Email OTP <span style={{ color: "#dc2626" }}>*</span>
-//                 </label>
-//                 <input
-//                   type="text"
-//                   value={emailOtp}
-//                   onChange={(e) => setEmailOtp(e.target.value)}
-//                   placeholder="Enter 6-digit email OTP"
-//                   maxLength={6}
-//                   required
-//                   style={{
-//                     width: "100%",
-//                     padding: "0.75rem 1rem",
-//                     border: "2px solid #e5e7eb",
-//                     borderRadius: "10px",
-//                     fontSize: "0.95rem",
-//                     transition: "all 0.2s ease",
-//                     outline: "none",
-//                     boxSizing: "border-box",
-//                     textAlign: "center",
-//                     letterSpacing: "0.5rem",
-//                     fontWeight: "600",
-//                   }}
-//                   onFocus={(e) => e.target.style.borderColor = "#3b82f6"}
-//                   onBlur={(e) => e.target.style.borderColor = "#e5e7eb"}
-//                 />
-//                 <div style={{ 
-//                   fontSize: "0.85rem", 
-//                   color: "#6b7280", 
-//                   marginTop: "0.5rem",
-//                 }}>
-//                   Sent to: <strong style={{ color: "#1d4ed8" }}>{formData.email}</strong>
-//                 </div>
-//               </div>
-
-//               <div style={{ marginBottom: "1.25rem" }}>
-//                 <label style={{
-//                   display: "block",
-//                   fontWeight: "500",
-//                   marginBottom: "0.5rem",
-//                   color: "#374151",
-//                   fontSize: "0.9rem",
-//                 }}>
-//                   Phone OTP <span style={{ color: "#dc2626" }}>*</span>
-//                 </label>
-//                 <input
-//                   type="text"
-//                   value={phoneOtp}
-//                   onChange={(e) => setPhoneOtp(e.target.value)}
-//                   placeholder="Enter 6-digit phone OTP"
-//                   maxLength={6}
-//                   required
-//                   style={{
-//                     width: "100%",
-//                     padding: "0.75rem 1rem",
-//                     border: "2px solid #e5e7eb",
-//                     borderRadius: "10px",
-//                     fontSize: "0.95rem",
-//                     transition: "all 0.2s ease",
-//                     outline: "none",
-//                     boxSizing: "border-box",
-//                     textAlign: "center",
-//                     letterSpacing: "0.5rem",
-//                     fontWeight: "600",
-//                   }}
-//                   onFocus={(e) => e.target.style.borderColor = "#3b82f6"}
-//                   onBlur={(e) => e.target.style.borderColor = "#e5e7eb"}
-//                 />
-//                 <div style={{ 
-//                   fontSize: "0.85rem", 
-//                   color: "#6b7280", 
-//                   marginTop: "0.5rem",
-//                 }}>
-//                   Sent to: <strong style={{ color: "#1d4ed8" }}>{formData.phone_number}</strong>
-//                 </div>
-//               </div>
-
-//               <button
-//                 type="button"
-//                 onClick={handleResendOtp}
-//                 disabled={loading}
-//                 style={{
-//                   background: "transparent",
-//                   border: "none",
-//                   color: "#1d4ed8",
-//                   cursor: loading ? "not-allowed" : "pointer",
-//                   padding: "0.5rem 0",
-//                   fontSize: "0.9rem",
-//                   textDecoration: "underline",
-//                   fontWeight: "500",
-//                   opacity: loading ? 0.6 : 1,
-//                 }}
-//               >
-//                 Resend OTP
-//               </button>
-//             </div>
-
-//             <div style={{ display: "flex", gap: "1rem" }}>
-//               <button
-//                 type="button"
-//                 onClick={() => setCurrentStep(3)}
-//                 style={{
-//                   flex: 1,
-//                   padding: "0.875rem",
-//                   border: "2px solid #e5e7eb",
-//                   borderRadius: "10px",
-//                   background: "white",
-//                   color: "#6b7280",
-//                   fontSize: "1rem",
-//                   fontWeight: "600",
-//                   cursor: "pointer",
-//                   transition: "all 0.2s ease",
-//                 }}
-//                 onMouseEnter={(e) => {
-//                   e.target.style.borderColor = "#d1d5db";
-//                   e.target.style.background = "#f9fafb";
-//                 }}
-//                 onMouseLeave={(e) => {
-//                   e.target.style.borderColor = "#e5e7eb";
-//                   e.target.style.background = "white";
-//                 }}
-//               >
-//                 Back
-//               </button>
-//               <button 
-//                 type="submit"
-//                 disabled={loading}
-//                 style={{
-//                   flex: 1,
-//                   padding: "0.875rem",
-//                   background: loading 
-//                     ? "#9ca3af" 
-//                     : "linear-gradient(135deg, #1d4ed8 0%, #3b82f6 100%)",
-//                   color: "white",
-//                   border: "none",
-//                   borderRadius: "10px",
-//                   fontSize: "1rem",
-//                   fontWeight: "600",
-//                   cursor: loading ? "not-allowed" : "pointer",
-//                   transition: "all 0.3s ease",
-//                   boxShadow: loading ? "none" : "0 4px 15px rgba(29, 78, 216, 0.3)",
-//                 }}
-//                 onMouseEnter={(e) => {
-//                   if (!loading) {
-//                     e.target.style.transform = "translateY(-2px)";
-//                     e.target.style.boxShadow = "0 6px 20px rgba(29, 78, 216, 0.4)";
-//                   }
-//                 }}
-//                 onMouseLeave={(e) => {
-//                   if (!loading) {
-//                     e.target.style.transform = "translateY(0)";
-//                     e.target.style.boxShadow = "0 4px 15px rgba(29, 78, 216, 0.3)";
-//                   }
-//                 }}
-//               >
-//                 {loading ? "Submitting..." : "Verify & Create Account"}
-//               </button>
-//             </div>
-//           </form>
-//         )}
-//       </div>
-//     </div>
-//   );
-// };
-
-// export default SignUp;
+}
+
+/* ─── Shared Sub-components ──────────────────────────────────────────────── */
+const Req = () => <span style={{ color:"#ef4444", marginLeft:"2px" }}>*</span>;
+
+const Field = ({ label, children, noMargin }) => (
+  <div style={{ marginBottom: noMargin ? 0 : "0.875rem" }}>
+    <label style={lbl}>{label} <Req/></label>
+    {children}
+  </div>
+);
+
+const HintText = ({ children }) => (
+  <div style={{ fontSize:"0.78rem", color: T.textMuted, marginTop:"0.35rem" }}>{children}</div>
+);
+
+const SectionLabel = ({ icon, children }) => (
+  <div style={{ display:"flex", alignItems:"center", gap:"0.5rem", marginBottom:"1.25rem" }}>
+    <span style={{ fontSize:"1rem" }}>{icon}</span>
+    <span style={{ fontSize:"0.95rem", fontWeight:"700", color: T.text }}>{children}</span>
+  </div>
+);
+
+const Divider = ({ label, icon }) => (
+  <div style={{ display:"flex", alignItems:"center", gap:"0.5rem", margin:"1.25rem 0 0.875rem" }}>
+    <span style={{ fontSize:"0.85rem" }}>{icon}</span>
+    <span style={{ fontSize:"0.8rem", fontWeight:"700", color: T.textSub, textTransform:"uppercase", letterSpacing:"0.06em" }}>{label}</span>
+    <div style={{ flex:1, height:"1px", background: T.border }}/>
+  </div>
+);
+
+const PrimaryBtn = ({ loading, label, loadingLabel, style }) => (
+  <button type="submit" disabled={loading} className="auth-btn-primary" style={{
+    width:"100%", padding:"0.8rem 1rem",
+    background: T.primary, color: T.white, border:"none",
+    borderRadius: T.radius, fontSize:"0.9rem", fontWeight:"600",
+    cursor: loading ? "not-allowed" : "pointer",
+    opacity: loading ? 0.7 : 1,
+    boxShadow:`0 2px 8px rgba(26,86,219,0.25)`,
+    display:"flex", alignItems:"center", justifyContent:"center", gap:"0.5rem",
+    ...style,
+  }}>
+    {loading && <span style={{ width:14, height:14, border:"2px solid rgba(255,255,255,0.4)", borderTopColor:"#fff", borderRadius:"50%", display:"inline-block", animation:"spin 0.7s linear infinite" }}/>}
+    {loading ? loadingLabel : label}
+  </button>
+);
+
+const BtnRow = ({ onBack, loading, label, loadingLabel }) => (
+  <div style={{ display:"flex", gap:"0.75rem" }}>
+    <button type="button" onClick={onBack} className="auth-btn-ghost" style={{
+      flex:"0 0 100px", padding:"0.8rem 1rem",
+      background: T.white, color: T.textSub,
+      border:`1.5px solid ${T.border}`, borderRadius: T.radius,
+      fontSize:"0.9rem", fontWeight:"600", cursor:"pointer", transition:"all 0.15s ease",
+    }}>
+      Back
+    </button>
+    <div style={{ flex:1 }}>
+      <PrimaryBtn loading={loading} label={label} loadingLabel={loadingLabel}/>
+    </div>
+  </div>
+);

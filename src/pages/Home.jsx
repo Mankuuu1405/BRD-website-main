@@ -2,8 +2,8 @@ import React from "react";
 import NavBar from "../components/Navbar";
 import Hero from "../components/Hero";
 import GrowthSection from "../components/GrowthSection";
-import InfoCard from "../components/InfoCard"; // new reusable card component
-import TestimonialCard from "../components/TestimonialCard"; // new reusable testimonial card
+import InfoCard from "../components/InfoCard";
+import TestimonialCard from "../components/TestimonialCard";
 
 const Home = () => {
   return (
@@ -14,24 +14,24 @@ const Home = () => {
       </header>
 
       {/* Hero Section */}
-      <section className="">
+      <section>
         <Hero />
       </section>
 
       {/* How CRM Works */}
-      <section className="bg-gradient-to-b from-[#f8fbff] to-white py-24 px-6 md:px-16">
+      <section className="bg-gradient-to-b from-[#f8fbff] to-white py-16 md:py-24 px-4 sm:px-8 md:px-16">
         <div className="max-w-6xl mx-auto text-center">
-          <h2 className="text-4xl md:text-5xl font-bold text-blue-600 mb-6">
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-blue-600 mb-4 md:mb-6 leading-tight">
             How Our Loan CRM Works
           </h2>
-          <p className="text-gray-600 text-lg mb-12 max-w-3xl mx-auto">
+          <p className="text-gray-600 text-base md:text-lg mb-10 md:mb-12 max-w-3xl mx-auto leading-relaxed px-2">
             Experience the future of loan management — automated, intelligent,
             and transparent. Our AI-powered CRM handles everything from lead to
             disbursement seamlessly.
           </p>
 
           {/* Steps */}
-          <div className="flex flex-col md:flex-row items-center justify-center gap-10">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-6 md:gap-10">
             <InfoCard
               image="https://i.pinimg.com/736x/ce/1e/62/ce1e62fd08189fd0e8c972154a0575a3.jpg"
               title="Lead Management"
@@ -52,13 +52,13 @@ const Home = () => {
       </section>
 
       {/* Our Values */}
-      <section className="bg-white py-20 px-6 md:px-16">
-        <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-12 items-center">
+      <section className="bg-white py-16 md:py-20 px-4 sm:px-8 md:px-16">
+        <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-12 items-center">
           <div>
-            <h2 className="text-4xl md:text-6xl font-bold text-blue-600 mb-4">
+            <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-blue-600 mb-4 leading-tight">
               Our Values
             </h2>
-            <p className="text-gray-600 text-lg mb-6">
+            <p className="text-gray-600 text-base md:text-lg mb-5 leading-relaxed">
               Our vision is to create a future where managing customer
               relationships feels effortless and intelligent. With automation
               and AI at the core,{" "}
@@ -66,16 +66,14 @@ const Home = () => {
               enables organizations to focus on what truly matters — building
               trust, driving engagement, and achieving sustainable growth.
             </p>
-
-            <p className="text-gray-600 text-lg mb-6">
-              We’re not just building software; we’re crafting a digital partner
+            <p className="text-gray-600 text-base md:text-lg mb-5 leading-relaxed">
+              We're not just building software; we're crafting a digital partner
               that understands your business needs. From startups to large
               enterprises, our tools are designed to scale with your journey,
               helping teams collaborate seamlessly, make data-driven decisions,
               and deliver exceptional customer experiences.
             </p>
-
-            <p className="text-gray-600 text-lg">
+            <p className="text-gray-600 text-base md:text-lg leading-relaxed">
               At{" "}
               <span className="font-semibold text-blue-600">Xpertland.Ai</span>,
               we believe that growth happens when technology meets human intent.
@@ -88,7 +86,7 @@ const Home = () => {
             <InfoCard
               image="https://i.pinimg.com/1200x/24/66/1a/24661a325c83c8d64a022e85c6178dc5.jpg"
               title="Customer First"
-              description="Putting our customers’ needs and success above all else."
+              description="Putting our customers' needs and success above all else."
             />
             <InfoCard
               image="https://i.pinimg.com/736x/b0/5f/34/b05f34960178759fc195f5c862743589.jpg"
@@ -111,12 +109,14 @@ const Home = () => {
       </section>
 
       {/* Testimonials */}
-      <section className="bg-white py-20 px-6 md:px-16">
+      <section className="bg-white py-16 md:py-20 px-4 sm:px-8 md:px-16">
         <div className="max-w-6xl mx-auto text-center">
-          <h2 className="text-4xl md:text-6xl font-bold text-blue-600 mb-14">
+          <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-blue-600 mb-10 md:mb-14 leading-tight">
             What Our Clients Say
           </h2>
-          <div className="flex flex-shrink  gap-8">
+
+          {/* Responsive: stack on mobile, row on md+ */}
+          <div className="flex flex-col sm:flex-row gap-6 md:gap-8 justify-center">
             <TestimonialCard
               image="https://i.pinimg.com/1200x/3a/02/39/3a023930d3f5f0460ce6aadc4da9c944.jpg"
               name="SHACHITRIPSHA"
@@ -127,17 +127,17 @@ const Home = () => {
               image="https://i.pinimg.com/736x/eb/76/a4/eb76a46ab920d056b02d203ca95e9a22.jpg"
               name="JIMARORA"
               handle="@JIMARORA"
-              quote="We appreciate the platform’s focus on compliance, data security, and audit readiness, which aligns well with corporate governance standards."
+              quote="We appreciate the platform's focus on compliance, data security, and audit readiness, which aligns well with corporate governance standards."
             />
             <TestimonialCard
               image="https://i.pinimg.com/736x/c9/4c/6c/c94c6c22df0adf7c9745c6e408125e69.jpg"
               name="Guy Hawkins"
               handle="@guythawkins"
-              quote="Built-in compliance checks and audit trails have strengthened our risk management and regulatory readiness.."
+              quote="Built-in compliance checks and audit trails have strengthened our risk management and regulatory readiness."
             />
           </div>
 
-          <div className="flex justify-center gap-2 mt-10">
+          <div className="flex justify-center gap-2 mt-8 md:mt-10">
             <span className="w-2.5 h-2.5 rounded-full bg-gray-400/30"></span>
             <span className="w-2.5 h-2.5 rounded-full bg-gray-400/30"></span>
             <span className="w-2.5 h-2.5 rounded-full bg-gray-400/30"></span>
