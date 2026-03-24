@@ -224,7 +224,7 @@ const Login = () => {
       if (!res.ok) throw new Error(data.error || data.detail || "Invalid credentials. Please try again.");
       if (data.access)  localStorage.setItem("accessToken",  data.access);
       if (data.refresh) localStorage.setItem("refreshToken", data.refresh);
-      navigate("/dashboards");
+      navigate("/tenants");
     } catch (err) {
       setError(err.message || "An unexpected error occurred. Please try again.");
     } finally {
