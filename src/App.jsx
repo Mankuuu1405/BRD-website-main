@@ -6,7 +6,8 @@ import Features from "./pages/Feature";
 import About from "./pages/About";
 import Footer from "./components/Footer";
 import TermsConditions from "./pages/TermsConditions";
-
+import CookiePolicy from "./pages/CookiePolicy";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
 import Contact from "./pages/Contact";
 import DashboardLinks from "./pages/DashboardLinks";
 import SignUp from "./pages/SignUp";
@@ -30,6 +31,8 @@ export default function App() {
           <Route path="/careers" element={<Careers />} />
           <Route path="/dashboards" element={<DashboardLinks />} />
           <Route path="/terms-conditions" element={<TermsConditions />} />
+          <Route path="/cookie-policy" element={<CookiePolicy />} />
+          <Route path="/privacy-policy" element={<PrivacyPolicy />} />
           <Route path="/payments" element={<Payments />} />
           <Route path="/signup" element={<SignUp />} />
           <Route path="/login" element={<Login />} />
