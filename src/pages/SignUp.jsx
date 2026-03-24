@@ -41,6 +41,8 @@ const globalCss = `
   @keyframes fadeSlide { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
   .auth-step-panel { animation: fadeSlide 0.25s ease both; }
   @keyframes spin { to { transform: rotate(360deg); } }
+  .otp-send-btn { transition: all 0.15s ease; }
+  .otp-send-btn:hover:not(:disabled) { background: ${T.primaryLight} !important; }
 `;
 
 const inp = {
@@ -84,6 +86,14 @@ export default function SignUp() {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
 
+  /* ── OTP Timer State ── */
+  const [emailOtpSent, setEmailOtpSent] = useState(false);
+  const [phoneOtpSent, setPhoneOtpSent] = useState(false);
+  const [emailTimer, setEmailTimer]     = useState(0);
+  const [phoneTimer, setPhoneTimer]     = useState(0);
+  const emailIntervalRef = useRef(null);
+  const phoneIntervalRef = useRef(null);
+
   const loanOptions = [
     "Working Capital","Equipment Financing","Line of Credit",
     "Merchant Cash Advance","Term Loan","Invoice Financing",
@@ -93,6 +103,14 @@ export default function SignUp() {
     const h = (e) => { if (dropdownRef.current && !dropdownRef.current.contains(e.target)) setDropdownOpen(false); };
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
+  }, []);
+
+  /* Clear timers on unmount */
+  useEffect(() => {
+    return () => {
+      if (emailIntervalRef.current) clearInterval(emailIntervalRef.current);
+      if (phoneIntervalRef.current) clearInterval(phoneIntervalRef.current);
+    };
   }, []);
 
   const handleChange = (e) => {
@@ -109,6 +127,37 @@ export default function SignUp() {
       if (i > -1) arr.splice(i,1); else arr.push(p);
       return { ...prev, loan_products: arr };
     });
+  };
+
+  /* ── OTP Timer Logic ── */
+  const startOtpTimer = (type) => {
+    if (type === "email") {
+      setEmailOtpSent(true);
+      setEmailTimer(45);
+      if (emailIntervalRef.current) clearInterval(emailIntervalRef.current);
+      emailIntervalRef.current = setInterval(() => {
+        setEmailTimer(prev => {
+          if (prev <= 1) {
+            clearInterval(emailIntervalRef.current);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    } else {
+      setPhoneOtpSent(true);
+      setPhoneTimer(45);
+      if (phoneIntervalRef.current) clearInterval(phoneIntervalRef.current);
+      phoneIntervalRef.current = setInterval(() => {
+        setPhoneTimer(prev => {
+          if (prev <= 1) {
+            clearInterval(phoneIntervalRef.current);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
   };
 
   /* Validations */
@@ -220,11 +269,6 @@ export default function SignUp() {
         }
       });
     } catch(err) { setError(err.message); } finally { setLoading(false); }
-  };
-
-  // 🚧 TEMP: Resend OTP bypassed — no API call made
-  const resendOtp = () => {
-    alert("Dev mode: OTP resend bypassed.");
   };
 
   const steps = ["Contact","Verify","Password","Details"];
@@ -362,7 +406,7 @@ export default function SignUp() {
               <form onSubmit={step2} className="auth-step-panel">
                 <SectionLabel icon="🔐">Verify Your Contact</SectionLabel>
                 <p style={{ fontSize:"0.875rem", color: T.textSub, margin:"-0.25rem 0 1.25rem", lineHeight:"1.6" }}>
-                  OTP sent to your email and phone. Enter both codes below.
+                  Click "Send OTP" to receive verification codes on your email and phone.
                 </p>
 
                 {/* 🚧 Temp bypass notice */}
@@ -376,22 +420,118 @@ export default function SignUp() {
                   <span>Dev mode: OTP verification bypassed. Enter any value to continue.</span>
                 </div>
 
-                <Field label="Email OTP">
-                  <input className="auth-input" type="text" value={emailOtp}
-                    onChange={e => setEmailOtp(e.target.value)} placeholder="• • • • • •"
-                    maxLength={6} required style={{ ...inp, textAlign:"center", letterSpacing:"0.5rem", fontFamily:"'DM Mono', monospace", fontWeight:"500" }}/>
-                  <HintText>Sent to <strong style={{color:T.primary}}>{formData.email}</strong></HintText>
-                </Field>
-                <Field label="Phone OTP">
-                  <input className="auth-input" type="text" value={phoneOtp}
-                    onChange={e => setPhoneOtp(e.target.value)} placeholder="• • • • • •"
-                    maxLength={6} required style={{ ...inp, textAlign:"center", letterSpacing:"0.5rem", fontFamily:"'DM Mono', monospace", fontWeight:"500" }}/>
-                  <HintText>Sent to <strong style={{color:T.primary}}>{formData.phone_number}</strong></HintText>
-                </Field>
-                <button type="button" onClick={resendOtp} disabled={loading}
-                  style={{ background:"none", border:"none", color: T.primary, cursor:"pointer", fontSize:"0.85rem", fontWeight:"600", padding:"0", marginBottom:"1.25rem", textDecoration:"underline", textUnderlineOffset:"2px" }}>
-                  Resend OTP
-                </button>
+                {/* Email OTP */}
+                <div style={{ marginBottom:"0.875rem" }}>
+                  <label style={lbl}>Email OTP <Req/></label>
+                  <div style={{ display:"flex", gap:"8px" }}>
+                    <input
+                      className="auth-input"
+                      type="text"
+                      value={emailOtp}
+                      onChange={e => setEmailOtp(e.target.value)}
+                      placeholder="• • • • • •"
+                      maxLength={6}
+                      required
+                      style={{
+                        ...inp,
+                        textAlign:"center",
+                        letterSpacing:"0.5rem",
+                        fontFamily:"'DM Mono', monospace",
+                        fontWeight:"500",
+                      }}
+                    />
+                    <button
+                      type="button"
+                      className="otp-send-btn"
+                      disabled={emailTimer > 0}
+                      onClick={() => startOtpTimer("email")}
+                      style={{
+                        flexShrink: 0,
+                        padding: "0 1rem",
+                        height: "46px",
+                        borderRadius: T.radius,
+                        border: `1.5px solid ${emailTimer > 0 ? T.border : T.primary}`,
+                        background: "transparent",
+                        color: emailTimer > 0 ? T.textMuted : T.primary,
+                        fontSize: "0.82rem",
+                        fontWeight: "600",
+                        cursor: emailTimer > 0 ? "not-allowed" : "pointer",
+                        whiteSpace: "nowrap",
+                        transition: "all 0.15s",
+                        minWidth: "110px",
+                      }}
+                    >
+                      {emailOtpSent ? "Resend OTP" : "Send OTP"}
+                    </button>
+                  </div>
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:"0.35rem" }}>
+                    <div style={{ fontSize:"0.78rem", color: T.textMuted }}>
+                      Sent to <strong style={{color:T.primary}}>{formData.email}</strong>
+                    </div>
+                    {emailTimer > 0 && (
+                      <div style={{ fontSize:"0.78rem", color: T.primary, fontWeight:"600" }}>
+                        Resend in {emailTimer}s
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Phone OTP */}
+                <div style={{ marginBottom:"1.25rem" }}>
+                  <label style={lbl}>Phone OTP <Req/></label>
+                  <div style={{ display:"flex", gap:"8px" }}>
+                    <input
+                      className="auth-input"
+                      type="text"
+                      value={phoneOtp}
+                      onChange={e => setPhoneOtp(e.target.value)}
+                      placeholder="• • • • • •"
+                      maxLength={6}
+                      required
+                      style={{
+                        ...inp,
+                        textAlign:"center",
+                        letterSpacing:"0.5rem",
+                        fontFamily:"'DM Mono', monospace",
+                        fontWeight:"500",
+                      }}
+                    />
+                    <button
+                      type="button"
+                      className="otp-send-btn"
+                      disabled={phoneTimer > 0}
+                      onClick={() => startOtpTimer("phone")}
+                      style={{
+                        flexShrink: 0,
+                        padding: "0 1rem",
+                        height: "46px",
+                        borderRadius: T.radius,
+                        border: `1.5px solid ${phoneTimer > 0 ? T.border : T.primary}`,
+                        background: "transparent",
+                        color: phoneTimer > 0 ? T.textMuted : T.primary,
+                        fontSize: "0.82rem",
+                        fontWeight: "600",
+                        cursor: phoneTimer > 0 ? "not-allowed" : "pointer",
+                        whiteSpace: "nowrap",
+                        transition: "all 0.15s",
+                        minWidth: "110px",
+                      }}
+                    >
+                      {phoneOtpSent ? "Resend OTP" : "Send OTP"}
+                    </button>
+                  </div>
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:"0.35rem" }}>
+                    <div style={{ fontSize:"0.78rem", color: T.textMuted }}>
+                      Sent to <strong style={{color:T.primary}}>{formData.phone_number}</strong>
+                    </div>
+                    {phoneTimer > 0 && (
+                      <div style={{ fontSize:"0.78rem", color: T.primary, fontWeight:"600" }}>
+                        Resend in {phoneTimer}s
+                      </div>
+                    )}
+                  </div>
+                </div>
+
                 <BtnRow onBack={() => setCurrentStep(1)} loading={loading} label="Verify & Continue" loadingLabel="Verifying…"/>
               </form>
             )}
