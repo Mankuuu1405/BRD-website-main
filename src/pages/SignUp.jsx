@@ -165,34 +165,19 @@ export default function SignUp() {
   };
 
   /* Step handlers */
-  const step1 = async (e) => {
+
+  // 🚧 TEMP: OTP sending bypassed — no API call made, goes directly to Step 2
+  const step1 = (e) => {
     e.preventDefault(); setError("");
     const err = v1(); if (err.length) { setError(err.join(" ")); return; }
-    setLoading(true);
-    try {
-      const res = await fetch("http://localhost:8000/auth/send-otp/", {
-        method:"POST", headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({ email: formData.email, mobile_no: fmtPhone(formData.phone_number) }),
-      });
-      const d = await res.json();
-      if (!res.ok) throw new Error(d.error || "Failed to send OTP");
-      setCurrentStep(2);
-    } catch(err) { setError(err.message); } finally { setLoading(false); }
+    setCurrentStep(2);
   };
 
-  const step2 = async (e) => {
+  // 🚧 TEMP: OTP verification bypassed — any OTP value works, no API call made
+  const step2 = (e) => {
     e.preventDefault(); setError("");
     const err = v2(); if (err.length) { setError(err.join(" ")); return; }
-    setLoading(true);
-    try {
-      const res = await fetch("http://localhost:8000/auth/verify-otp/", {
-        method:"POST", headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({ mobile_no: fmtPhone(formData.phone_number), phone_otp: phoneOtp, email_otp: emailOtp }),
-      });
-      const d = await res.json();
-      if (!res.ok) throw new Error(d.error || "Invalid OTP");
-      setCurrentStep(3);
-    } catch(err) { setError(err.message); } finally { setLoading(false); }
+    setCurrentStep(3);
   };
 
   const step3 = (e) => {
@@ -237,17 +222,9 @@ export default function SignUp() {
     } catch(err) { setError(err.message); } finally { setLoading(false); }
   };
 
-  const resendOtp = async () => {
-    setLoading(true); setError("");
-    try {
-      const res = await fetch("http://localhost:8000/auth/send-otp/", {
-        method:"POST", headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({ email: formData.email, mobile_no: fmtPhone(formData.phone_number) }),
-      });
-      const d = await res.json();
-      if (!res.ok) throw new Error(d.error || "Failed to resend OTP");
-      alert("OTP resent successfully!");
-    } catch(err) { setError(err.message); } finally { setLoading(false); }
+  // 🚧 TEMP: Resend OTP bypassed — no API call made
+  const resendOtp = () => {
+    alert("Dev mode: OTP resend bypassed.");
   };
 
   const steps = ["Contact","Verify","Password","Details"];
@@ -387,6 +364,18 @@ export default function SignUp() {
                 <p style={{ fontSize:"0.875rem", color: T.textSub, margin:"-0.25rem 0 1.25rem", lineHeight:"1.6" }}>
                   OTP sent to your email and phone. Enter both codes below.
                 </p>
+
+                {/* 🚧 Temp bypass notice */}
+                <div style={{
+                  background:"#fffbeb", border:"1px solid #fcd34d", borderRadius: T.radius,
+                  padding:"0.65rem 0.875rem", marginBottom:"1.25rem",
+                  fontSize:"0.8rem", color:"#92400e", fontWeight:"500",
+                  display:"flex", gap:"0.5rem", alignItems:"center",
+                }}>
+                  <span>⚠️</span>
+                  <span>Dev mode: OTP verification bypassed. Enter any value to continue.</span>
+                </div>
+
                 <Field label="Email OTP">
                   <input className="auth-input" type="text" value={emailOtp}
                     onChange={e => setEmailOtp(e.target.value)} placeholder="• • • • • •"
